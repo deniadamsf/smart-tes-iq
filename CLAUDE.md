@@ -8,7 +8,9 @@ Proyek ini terdiri dari dua sub-proyek dalam satu folder:
 | `smarttesiq BACKEND/` | API Laravel 12 (PHP ^8.2, Sanctum 4, MySQL) |
 | `u731410318_smart_tes_iq.sql` | Dump skema + data produksi (~1,2 MB) |
 
-Belum ada git di folder ini. Perubahan tidak bisa di-rollback lewat `git checkout` — hati-hati sebelum menimpa file.
+Folder ini sudah di bawah git, remote privat di `github.com/deniadamsf/smart-tes-iq` (branch `main`). Perubahan pada file terlacak bisa dikembalikan lewat `git checkout`.
+
+Yang **tidak** terlindungi git karena sengaja dikecualikan di `.gitignore`: keystore Android (`upload-keystore.jks`, `key.properties`), kedua `.env`, dump SQL produksi, dan `smarttesiq BACKEND/public/gemini_proxy.php` (memegang API key Gemini di sisi server — ini disengaja, jangan diubah jadi membaca `.env` dan jangan dimasukkan ke repo). File-file itu tidak punya cadangan di git.
 
 ---
 
@@ -53,7 +55,7 @@ Untuk proyek ini semua operasi kerja **sudah disetujui** — tidak perlu bertany
 
 Yang tetap diblokir, dan alasannya:
 
-- `rm -rf` ke root/home — tidak ada git di sini, tidak ada jaring pengaman.
+- `rm -rf` ke root/home — git hanya melindungi file terlacak; keystore, `.env`, dan dump SQL tidak ada di dalamnya dan hilang selamanya.
 - `git push --force`, `git reset --hard` — menghapus kerja yang belum tersimpan.
 - `php artisan migrate:fresh`, `db:wipe` — menghapus database.
 - Membaca `.env` — berisi kredensial produksi.
@@ -87,18 +89,20 @@ Selain salinan lokal `smarttesiq BACKEND/`, ada **backend asli yang sedang melay
 **Satu-satunya folder yang boleh disentuh:**
 
 ```
-/home/u731410318/public_html/smarttesiq
+/home/u731410318/domains/cellanoma.my.id/public_html/smarttesiq
 ```
+
+(`~/public_html` adalah symlink ke domain lain yang kosong — bukan lokasi proyek ini. Domain aplikasi: `smarttesiq.cellanoma.my.id`, base URL API `https://smarttesiq.cellanoma.my.id/public/api`.)
 
 Struktur Laravel di dalamnya (`app/`, `routes/`, `public/`, dsb.) dipetakan lewat `ls` pada koneksi pertama — jangan berasumsi tata letaknya sama persis dengan salinan lokal.
 
-**Tetangganya di `public_html/` bukan milik proyek ini** dan tidak boleh dibaca, diubah, apalagi dihapus: `zenvi/`, `clara/`, `persona/`, `public/`, `files/`, serta file di akar (`.htaccess`, `app-ads.txt`, `default.php`, `kebijakan-privasi.html`). `.htaccess` di akar mengatur routing seluruh domain — mengubahnya bisa mematikan semua situs sekaligus, bukan cuma SMART TES IQ.
+**Tetangganya di `domains/cellanoma.my.id/public_html/` bukan milik proyek ini** dan tidak boleh dibaca, diubah, apalagi dihapus: `zenvi/`, `clara/`, `persona/`, `public/`, `files/`, serta file di akar (`.htaccess`, `app-ads.txt`, `default.php`, `kebijakan-privasi.html`). `.htaccess` di akar mengatur routing seluruh domain — mengubahnya bisa mematikan semua situs sekaligus, bukan cuma SMART TES IQ.
 
 Akses ini juga **hanya untuk alias `hostinger`**. Host lain di config SSH (`mywowin`, `rajakuvps`) milik proyek lain dan tidak boleh disentuh dari sesi ini.
 
 ### Yang berubah dibanding kerja lokal
 
-Di lokal, salah edit paling parah berarti mengulang kerja. Di sini, salah edit berarti **aplikasi user langsung rusak** — tidak ada git, tidak ada staging, tidak ada undo. Perlakukan setiap perintah ke `hostinger` seperti perintah yang tidak bisa ditarik kembali.
+Di lokal ada git sebagai jaring pengaman. Di server produksi **tidak ada** — tidak ada git, tidak ada staging, tidak ada undo, dan salah edit berarti **aplikasi user langsung rusak**. Perlakukan setiap perintah ke `hostinger` seperti perintah yang tidak bisa ditarik kembali.
 
 ### Urutan wajib sebelum mengubah file produksi
 
@@ -115,7 +119,7 @@ Di lokal, salah edit paling parah berarti mengulang kerja. Di sini, salah edit b
 - `php artisan` apa pun yang menulis (`migrate`, `cache:clear`, `config:cache`, `queue:restart`).
 - Menyentuh `.env` produksi — **jangan dibaca, jangan disalin, jangan ditampilkan**.
 - Apa pun yang menyentuh database: tidak ada `mysql`, `mysqldump`, atau migration lewat sesi ini. Kalau butuh data, minta user yang mengambilkan.
-- Menyentuh apa pun di luar `public_html/smarttesiq/` — folder tetangga dan file di akar `public_html/` sekalipun hanya untuk dilihat sekilas, bukan diubah.
+- Menyentuh apa pun di luar `domains/cellanoma.my.id/public_html/smarttesiq/` — folder tetangga dan file di akar `public_html/` sekalipun hanya untuk dilihat sekilas, bukan diubah.
 
 ### Pembagian model
 
