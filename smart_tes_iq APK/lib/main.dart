@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
@@ -20,8 +19,6 @@ void main() async {
 
   await Firebase.initializeApp();
   RewardedAdManager.loadAd();
-
-  await dotenv.load(fileName: ".env");
 
   // BARU: cek apakah user (baru ATAU lama yang baru saja update) sudah
   // pernah memilih bahasa. Kalau belum, key ini akan null/false, dan kita
