@@ -14,7 +14,6 @@
     "chat_ai": "Ask AI",
     "profile": "Profile"
   },
-  
   "anagram": {
     "title": "Brain Teaser: Anagram",
     "time_up": "Time's Up!",
@@ -492,7 +491,6 @@
     "btn_prev": "Previous",
     "btn_next": "Next",
     "btn_finish": "Finish Sub-test",
-
     "cat_matriks_title": "Part 1: Spatial Logic Matrix",
     "cat_matriks_desc": "Observe the pattern of image changes inside the 3x3 box, both horizontally and vertically. Choose one correct image from options A-E to fill the empty box (?).",
     "cat_3d_title": "Part 2: 3D Shapes and Mental Rotation",
@@ -634,5 +632,43 @@
   },
   "ads": {
     "not_ready": "Ads are being prepared. Please wait a few seconds and try again."
+  },
+  "daily": {
+    "appbar_title": "Daily IQ Challenge",
+    "intro_title": "Today's Challenge",
+    "intro_desc": "5 questions, {} minutes. Everyone gets the same questions.",
+    "intro_note": "Ranking is by correct answers first, then speed.",
+    "btn_watch_start": "Watch ad & start",
+    "btn_later": "Maybe later",
+    "btn_watch_result": "Watch ad & see result",
+    "btn_skip": "Skip",
+    "btn_prev": "Previous",
+    "btn_next": "Next",
+    "btn_finish": "Finish & Submit",
+    "btn_close": "Close",
+    "btn_retry": "Try again",
+    "need_login_title": "Sign in required",
+    "need_login_desc": "The daily challenge stores your ranking on the server, so please sign in with Google first.",
+    "offline_title": "No connection",
+    "offline_desc": "The daily challenge needs internet because questions and scoring live on the server.",
+    "failed_title": "Failed to load",
+    "failed_desc": "Something went wrong on the server. Please try again shortly.",
+    "already_title": "Already done today",
+    "already_desc": "You have finished today's challenge. Come back tomorrow.",
+    "msg_incomplete": "Some questions are unanswered. Submit now?",
+    "btn_send_anyway": "Submit anyway",
+    "btn_check_again": "Check again",
+    "time_left": "Time left",
+    "time_up": "Time is up, your answers were submitted.",
+    "result_title": "Daily Challenge Result",
+    "result_correct": "Correct",
+    "result_iq": "Daily IQ",
+    "result_time": "Time",
+    "result_rank": "Rank {} of {}",
+    "result_saving": "Saving...",
+    "streak": "{}-day streak",
+    "question_of": "Question {} of {}",
+    "ad_unavailable": "Ad unavailable, you can still continue.",
+    "banner_desc": "New questions daily. Race against other players."
   }
 }

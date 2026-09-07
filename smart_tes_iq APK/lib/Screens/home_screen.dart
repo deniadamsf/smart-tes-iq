@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:easy_localization/easy_localization.dart'; // BARU: Untuk terjemahan
 import '../helpers/database_helper.dart';
 import '../services/auth_service.dart';
+import 'daily_challenge_screen.dart';
 import '../helpers/test_label_helper.dart'; // BARU: Untuk menerjemahkan judul tes di layar
 import 'test_screen.dart';
 import 'verbal_test_screen.dart';
@@ -519,6 +520,35 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ],
+                ),
+              ),
+            ),
+
+            // =====================================
+            // 0. BANNER TANTANGAN IQ HARIAN
+            // =====================================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
+              child: Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFFEF6C00), Color(0xFFF9A825)]),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    leading: const Icon(Icons.emoji_events, color: Colors.white, size: 36),
+                    title: Text('daily.appbar_title'.tr(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    subtitle: Text('daily.banner_desc'.tr(),
+                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyChallengeScreen())).then((_) => _loadProgress());
+                    },
+                  ),
                 ),
               ),
             ),

@@ -203,4 +203,40 @@ class DatabaseHelper {
       );
     }
   }
+
+  // ==========================================
+  // TANTANGAN HARIAN (v2)
+  // ==========================================
+  // Cache lokal hasil sendiri supaya tetap terbaca offline.
+  // Sumber kebenaran tetap di server — peringkat dan tanggal dihitung
+  // di sana, bukan di sini.
+
+  Future<void> saveDailyChallenge(Map<String, dynamic> row) async {
+    final db = await instance.database;
+    await db.insert(
+      'daily_challenge',
+      row,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getDailyChallenge(String date) async {
+    final db = await instance.database;
+    final rows = await db.query(
+      'daily_challenge',
+      where: 'challenge_date = ?',
+      whereArgs: [date],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<List<Map<String, dynamic>>> getDailyChallengeHistory({int limit = 30}) async {
+    final db = await instance.database;
+    return await db.query(
+      'daily_challenge',
+      orderBy: 'challenge_date DESC',
+      limit: limit,
+    );
+  }
 }
