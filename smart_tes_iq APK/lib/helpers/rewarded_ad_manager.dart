@@ -30,36 +30,66 @@ class RewardedAdManager {
   }
 
   // FUNGSI 2: MENAMPILKAN IKLAN & MEMBERIKAN HADIAH
-  static void showAd(BuildContext context, VoidCallback onRewardEarned) {
+  //
+  // Dipakai sebagai GERBANG di Tantangan Harian, jadi pemanggil harus tahu
+  // ketiga kemungkinan akhirnya — bukan cuma yang berhasil:
+  //
+  //   onRewardEarned : iklan ditonton sampai selesai.
+  //   onUnavailable  : iklan tidak tersedia (offline / belum termuat / gagal
+  //                    tampil). Pemanggil WAJIB tetap meloloskan user.
+  //                    Kehilangan satu impresi jauh lebih murah daripada
+  //                    mengunci user dari fitur dan dapat ulasan bintang satu.
+  //   onDismissed    : iklan ditutup sebelum selesai. Pemanggil perlu ini
+  //                    untuk mengaktifkan lagi tombolnya.
+  //
+  // onUnavailable dan onDismissed opsional supaya pemanggil lama
+  // (showAd(context, cb)) tetap jalan tanpa diubah.
+  static void showAd(
+    BuildContext context,
+    VoidCallback onRewardEarned, {
+    VoidCallback? onUnavailable,
+    VoidCallback? onDismissed,
+  }) {
     if (_rewardedAd == null) {
-      // Jika internet lemot dan iklan belum selesai dimuat
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('ads.not_ready'.tr()), // DIUBAH: Menggunakan kunci terjemahan
-          backgroundColor: Colors.orange,
-        ),
-      );
-      loadAd(); // Paksa muat ulang
+      loadAd(); // muat untuk kesempatan berikutnya
+
+      if (onUnavailable != null) {
+        onUnavailable();
+      } else {
+        // Perilaku lama dipertahankan untuk pemanggil yang belum diperbarui.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ads.not_ready'.tr()),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
+    bool earned = false;
+
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
-        // Saat user menutup iklan (X), buang iklan lama dan muat yang baru
         ad.dispose();
         _rewardedAd = null;
         loadAd();
+        // Hadiah sudah diberikan lewat onUserEarnedReward. Kalau belum,
+        // berarti user menutup iklan lebih awal.
+        if (!earned) onDismissed?.call();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
         _rewardedAd = null;
         loadAd();
+        // Gagal tampil bukan salah user — perlakukan seperti tidak tersedia.
+        onUnavailable?.call();
       },
     );
 
     _rewardedAd!.show(
       onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-        // JIKA USER BERHASIL MENONTON SAMPAI HABIS, JALANKAN FUNGSI HADIAH!
+        earned = true;
         onRewardEarned();
       },
     );
