@@ -18,8 +18,15 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    // Buka database, jika belum ada maka buat baru (versi 1)
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    // Buka database. onUpgrade WAJIB ada bersama kenaikan version:
+    // menaikkan version tanpa onUpgrade membuat database GAGAL DIBUKA untuk
+    // user lama, dan seluruh riwayat tes mereka jadi tidak terbaca.
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   // Membuat struktur tabel saat database pertama kali dibuat
@@ -56,6 +63,39 @@ class DatabaseHelper {
         message TEXT NOT NULL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         is_synced INTEGER NOT NULL DEFAULT 0 -- 0 = Belum dikirim ke Laravel, 1 = Sudah
+      )
+    ''');
+
+    // 4. Tabel Tantangan Harian (v2)
+    await _createDailyChallengeTable(db);
+  }
+
+  // ==========================================
+  // MIGRASI SKEMA
+  // ==========================================
+
+  // Dipanggil saat user LAMA membuka aplikasi dengan versi database lebih baru.
+  // HANYA BOLEH MENAMBAH. Jangan pernah DROP atau ALTER tabel lama di sini —
+  // riwayat tes user tersimpan di sana dan tidak punya cadangan.
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createDailyChallengeTable(db);
+    }
+  }
+
+  // Dipanggil dari DUA tempat: _createDB (instalasi baru) dan _upgradeDB
+  // (user lama yang update). Kalau hanya dipasang di salah satunya, separuh
+  // user tidak akan punya tabel ini.
+  Future _createDailyChallengeTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS daily_challenge (
+        challenge_date TEXT PRIMARY KEY,   -- 'YYYY-MM-DD', tanggal dari SERVER
+        correct        INTEGER NOT NULL,
+        total          INTEGER NOT NULL,
+        duration_ms    INTEGER NOT NULL,
+        iq_harian      INTEGER NOT NULL,
+        rank_today     INTEGER,            -- null kalau peringkat belum diambil
+        synced_at      TEXT
       )
     ''');
   }

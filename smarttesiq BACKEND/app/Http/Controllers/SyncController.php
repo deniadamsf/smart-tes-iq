@@ -32,12 +32,33 @@ class SyncController extends Controller
             // 1. Simpan Data Tes
             if ($request->has('tests')) {
                 foreach ($request->tests as $test) {
+                    $name  = trim((string) ($test['test_name'] ?? ''));
+                    $score = (int) ($test['score'] ?? -1);
+                    $total = (int) ($test['total_questions'] ?? 0);
+
+                    // Lewati baris yang mustahil. Tanpa ini, siapa pun bisa
+                    // mengirim score 9999 dan menguasai papan peringkat.
+                    //
+                    // Sengaja 'continue', BUKAN throw/validate(): kalau satu
+                    // baris rusak menggagalkan seluruh request, user kehilangan
+                    // cadangan SELURUH riwayatnya, bukan cuma baris itu.
+                    //
+                    // Sengaja TANPA whitelist nama tes: kalau jenis tes baru
+                    // ditambahkan di APK dan lupa didaftarkan di sini, hasilnya
+                    // akan hilang diam-diam. Validasi angka sudah cukup.
+                    if ($name === '' || mb_strlen($name) > 100) {
+                        continue;
+                    }
+                    if ($score < 0 || $total < 1 || $total > 200 || $score > $total) {
+                        continue;
+                    }
+
                     $user->testResults()->updateOrCreate(
                         ['client_created_at' => $test['created_at'] ?? (string) time()],
                         [
-                            'test_name' => $test['test_name'],
-                            'score' => $test['score'],
-                            'total_questions' => $test['total_questions'],
+                            'test_name' => $name,
+                            'score' => $score,
+                            'total_questions' => $total,
                             'ai_analysis' => $test['ai_analysis'] ?? null,
                         ]
                     );
