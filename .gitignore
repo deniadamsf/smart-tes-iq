@@ -1,0 +1,120 @@
+# ==========================================================
+# SMART TES IQ — monorepo (Flutter + Laravel)
+# ==========================================================
+
+# ----- RAHASIA: JANGAN PERNAH DI-COMMIT -----
+.env
+*.env
+!.env.example
+**/key.properties
+*.jks
+*.keystore
+*.p12
+*.p8
+*.mobileprovision
+
+# Dump database produksi (berisi data pribadi user)
+*.sql
+*.sql.gz
+*.dump
+
+# ----- Arsip besar -----
+*.zip
+lib.zip
+backend.zip
+
+# ==========================================================
+# Flutter / Dart
+# ==========================================================
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+pubspec.lock.bak
+*.g.dart.bak
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/.cxx/
+*.apk
+*.aab
+*.aar
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/App.framework
+**/ios/Flutter/ephemeral/
+**/ios/Runner.xcworkspace/xcuserdata/
+**/ios/Runner.xcodeproj/xcuserdata/
+*.ipa
+
+# Web / desktop build output
+**/web/build/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+
+# ==========================================================
+# Laravel / PHP
+# ==========================================================
+/vendor/
+**/vendor/
+node_modules/
+**/node_modules/
+**/storage/*.key
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+**/storage/framework/testing/*
+**/storage/logs/*
+!**/storage/**/.gitignore
+**/bootstrap/cache/*
+!**/bootstrap/cache/.gitignore
+**/public/hot
+**/public/storage
+.phpunit.result.cache
+.phpunit.cache/
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+
+# ==========================================================
+# Claude Code
+# ==========================================================
+.claude/settings.local.json
+
+# ==========================================================
+# OS / editor
+# ==========================================================
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# ==========================================================
+# SEMENTARA: berisi API key Gemini yang di-hardcode (baris 10).
+# Keluarkan dari git sampai di-refactor membaca dari .env.
+# ==========================================================
+smarttesiq BACKEND/public/gemini_proxy.php

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "model": "opus",
+  "fallbackModel": ["claude-sonnet-5", "claude-haiku-4-5-20251001"],
+  "availableModels": ["opus", "sonnet", "haiku"],
+  "alwaysThinkingEnabled": true,
+
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read", "Glob", "Grep", "Edit", "Write",
+      "Bash(flutter *)", "Bash(dart *)", "Bash(adb *)",
+      "Bash(gradlew *)", "Bash(./gradlew *)",
+      "Bash(php *)", "Bash(composer *)", "Bash(vendor/bin/*)",
+      "Bash(npm *)", "Bash(npx *)",
+      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)",
+      "Bash(git add*)", "Bash(git commit*)", "Bash(git branch*)", "Bash(git checkout*)",
+      "Bash(ls*)", "Bash(cat*)", "Bash(head*)", "Bash(tail*)",
+      "Bash(find*)", "Bash(grep*)", "Bash(sed*)",
+      "Bash(mkdir*)", "Bash(cp*)", "Bash(mv*)",
+
+      "Bash(ssh hostinger *)",
+      "Bash(ssh -o * hostinger *)",
+      "Bash(sftp hostinger*)",
+      "Bash(scp hostinger*)",
+      "Bash(rsync hostinger*)",
+      "Bash(scp * hostinger:*)",
+      "Bash(rsync * hostinger:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(php artisan migrate:fresh*)",
+      "Bash(php artisan db:wipe*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+
+      "Bash(ssh mywowin*)",
+      "Bash(ssh rajakuvps*)",
+      "Bash(ssh root@*)",
+      "Bash(ssh * rm *)",
+      "Bash(ssh * mysql *)",
+      "Bash(ssh * mysqldump *)",
+      "Bash(rsync --delete*)",
+      "Read(~/.ssh/id_*)"
+    ],
+    "ask": [
+      "Bash(scp * hostinger:*)",
+      "Bash(rsync * hostinger:*)"
+    ]
+  },
+
+  "env": {
+    "FLUTTER_APP_DIR": "smart_tes_iq APK",
+    "LARAVEL_APP_DIR": "smarttesiq BACKEND"
+  }
+}

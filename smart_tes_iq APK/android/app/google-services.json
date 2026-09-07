@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "415647625229",
+    "project_id": "smart-tes-iq-2e0b7",
+    "storage_bucket": "smart-tes-iq-2e0b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:415647625229:android:b918c4a03566f17630a544",
+        "android_client_info": {
+          "package_name": "com.cellanomadigital.smart_tes_iq"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "415647625229-0v90du5emk9gm4tdl28qjfcu7g4jb1b5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cellanomadigital.smart_tes_iq",
+            "certificate_hash": "816e7e146ac9abcc90397b8cc51693f57f31a1d7"
+          }
+        },
+        {
+          "client_id": "415647625229-lhd68ej726cr0qn74lbn8f761npnua98.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzsN7hlf8Dkm97b9zUyN_EofQisQvmieA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "415647625229-lhd68ej726cr0qn74lbn8f761npnua98.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
