@@ -114,7 +114,11 @@ desktop.ini
 *~
 
 # ==========================================================
-# SEMENTARA: berisi API key Gemini yang di-hardcode (baris 10).
-# Keluarkan dari git sampai di-refactor membaca dari .env.
+# JANGAN PERNAH DI-COMMIT. Berisi API key Gemini.
+# Proxy ini SENGAJA memegang key di sisi server — itu justru
+# perbaikan keamanannya: key tidak lagi ikut terpaket di APK
+# (cara lama lewat assets/.env pernah membuat key dibajak).
+# Jangan "dirapikan" jadi membaca .env, dan jangan dimasukkan
+# ke repo dalam bentuk apa pun.
 # ==========================================================
 smarttesiq BACKEND/public/gemini_proxy.php
