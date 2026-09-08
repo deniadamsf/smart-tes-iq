@@ -75,7 +75,23 @@ class _FinalResultScreenState extends State<FinalResultScreen> {
     // 1. MENGHITUNG SKOR IQ REGULER
     int totalCognitiveCorrect = 0, totalCognitiveQuestions = 0;
     latestData.forEach((key, data) {
-      if (key.contains('Verbal') || key.contains('Deret') || key.contains('Logis') || key.contains('Spasial') || key.contains('Klasifikasi')) {
+      // '(PRO)' SENGAJA dikecualikan. Sebelum ini, hasil tes PRO ikut
+      // tercampur ke skor "IQ Reguler" karena contains('Deret') juga cocok
+      // dengan 'Deret Angka (PRO)'. Akibatnya user yang membeli PRO diukur
+      // pada dasar yang berbeda dari user gratis — tidak setara untuk
+      // papan peringkat, dan salah label untuk skor pribadi.
+      //
+      // Diukur di produksi sebelum diubah: 6 user skornya bergeser (semua
+      // NAIK, +2..+25) dan 7 user kehilangan IQ Reguler karena hanya
+      // mengerjakan tes PRO. Ketujuhnya tetap punya skor IQ PRO, jadi tidak
+      // ada yang berakhir tanpa skor.
+      //
+      // Rumus ini harus SAMA PERSIS dengan UserIqScore::kognitifGratis()
+      // di backend, kalau tidak angka di aplikasi dan di papan berbeda.
+      final bool kognitifGratis = !key.contains('(PRO)') &&
+          (key.contains('Verbal') || key.contains('Deret') || key.contains('Logis') || key.contains('Spasial') || key.contains('Klasifikasi'));
+
+      if (kognitifGratis) {
         totalCognitiveCorrect += data['score'] as int;
         totalCognitiveQuestions += data['total'] as int;
       }

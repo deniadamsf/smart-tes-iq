@@ -154,4 +154,23 @@ class DailyChallengeService {
       return _wrap(offline);
     }
   }
+
+  /// [jenis] 'reguler' atau 'pro'.
+  ///
+  /// Skor kedua papan ini dihitung di HP lalu dikirim lewat /sync, jadi
+  /// tidak bisa dijamin jujur seperti papan harian. Respons membawa
+  /// 'terverifikasi': false — layar menampilkan bedanya ke user.
+  static Future<Map<String, dynamic>> leaderboardIq(String jenis) async {
+    final token = await _token();
+    if (token == null) return _wrap(needLogin);
+
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/leaderboard/$jenis'), headers: _headers(token))
+          .timeout(_timeout);
+      return _read(res);
+    } catch (_) {
+      return _wrap(offline);
+    }
+  }
 }

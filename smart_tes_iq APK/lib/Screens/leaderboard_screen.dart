@@ -4,12 +4,18 @@ import 'package:easy_localization/easy_localization.dart';
 import '../services/daily_challenge_service.dart';
 import 'daily_challenge_screen.dart';
 
-/// Papan peringkat harian.
+/// Papan peringkat: Harian, IQ Reguler, IQ PRO.
 ///
-/// Nama yang tampil di sini SELALU `display_name` pilihan user sendiri,
-/// tidak pernah nama akun Google. User yang belum memilih nama tetap
-/// dihitung peringkatnya tapi tidak dipajang — ikut serta harus lewat
-/// persetujuan aktif, bukan default.
+/// Dua hal yang tidak boleh berubah tanpa dipikir ulang:
+///
+/// 1. Nama yang tampil SELALU `display_name` pilihan user, tidak pernah
+///    nama akun Google. User tanpa nama tampilan tetap dihitung
+///    peringkatnya tapi tidak dipajang.
+///
+/// 2. Hanya papan Harian yang dinilai server dan karena itu tidak bisa
+///    dipalsukan. Papan Reguler dan PRO memakai skor yang dihitung di
+///    perangkat, dan layar ini mengatakannya terang-terangan ke user
+///    lewat `terverifikasi` dari server.
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -17,46 +23,84 @@ class LeaderboardScreen extends StatefulWidget {
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
 
-class _LeaderboardScreenState extends State<LeaderboardScreen> {
+class _BoardState {
+  bool loading = true;
+  String error = '';
+  Map<String, dynamic> data = {};
+}
+
+class _LeaderboardScreenState extends State<LeaderboardScreen>
+    with SingleTickerProviderStateMixin {
   static const Color _brand = Color(0xFF0D47A1);
   static const Color _gold = Color(0xFFEF6C00);
 
-  bool _loading = true;
-  String _errorCode = '';
-  Map<String, dynamic> _data = {};
+  late final TabController _tabs;
+  final Map<String, _BoardState> _state = {
+    'daily': _BoardState(),
+    'reguler': _BoardState(),
+    'pro': _BoardState(),
+  };
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _tabs = TabController(length: 3, vsync: this);
+    _tabs.addListener(_onTab);
+    _load('daily');
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _tabs.removeListener(_onTab);
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  String get _activeKey => ['daily', 'reguler', 'pro'][_tabs.index];
+
+  /// Muat tab hanya saat pertama dibuka, bukan setiap kali digeser.
+  void _onTab() {
+    if (_tabs.indexIsChanging) return;
+    final k = _activeKey;
+    if (_state[k]!.data.isEmpty && _state[k]!.error.isEmpty) _load(k);
+  }
+
+  Future<void> _load(String key) async {
     setState(() {
-      _loading = true;
-      _errorCode = '';
+      _state[key]!.loading = true;
+      _state[key]!.error = '';
     });
 
-    final res = await DailyChallengeService.leaderboardDaily();
-    if (!mounted) return;
+    final res = key == 'daily'
+        ? await DailyChallengeService.leaderboardDaily()
+        : await DailyChallengeService.leaderboardIq(key);
 
+    if (!mounted) return;
     setState(() {
-      _loading = false;
+      final st = _state[key]!;
+      st.loading = false;
       if (res['code'] == DailyChallengeService.ok) {
-        _data = res['data'] as Map<String, dynamic>;
+        st.data = res['data'] as Map<String, dynamic>;
       } else {
-        _errorCode = res['code'] as String;
+        st.error = res['code'] as String;
       }
     });
+  }
+
+  /// Nama tampilan berlaku untuk semua papan, jadi muat ulang semuanya.
+  void _reloadAll() {
+    for (final k in _state.keys) {
+      _state[k]!.data = {};
+      _state[k]!.error = '';
+    }
+    _load(_activeKey);
   }
 
   // ===================================================================
   // Dialog nama tampilan
   // ===================================================================
-  Future<void> _askDisplayName() async {
-    final controller = TextEditingController(
-      text: (_data['display_name'] ?? '') as String? ?? '',
-    );
+  Future<void> _askDisplayName(String? current) async {
+    final controller = TextEditingController(text: current ?? '');
     String? errorText;
     var saving = false;
 
@@ -115,7 +159,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         return;
                       }
 
-                      // Pesan validasi dari server sudah ramah dan
+                      // Pesan penolakan dari server sudah jelas dan
                       // berbahasa Indonesia — tampilkan apa adanya.
                       final data = res['data'] as Map<String, dynamic>;
                       setLocal(() {
@@ -137,12 +181,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('leaderboard.name_saved'.tr())),
       );
-      _load();
+      _reloadAll();
     }
   }
 
   // ===================================================================
-  // Tampilan
+  // Rangka
   // ===================================================================
   @override
   Widget build(BuildContext context) {
@@ -155,63 +199,126 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            onPressed: _loading ? null : _load,
+            onPressed: () => _load(_activeKey),
             icon: const Icon(Icons.refresh),
             tooltip: 'leaderboard.btn_retry'.tr(),
           ),
         ],
+        bottom: TabBar(
+          controller: _tabs,
+          indicatorColor: _gold,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          tabs: [
+            Tab(text: 'leaderboard.tab_daily'.tr()),
+            Tab(text: 'leaderboard.tab_reguler'.tr()),
+            Tab(text: 'leaderboard.tab_pro'.tr()),
+          ],
+        ),
       ),
-      body: SafeArea(child: _buildBody()),
+      body: SafeArea(
+        child: TabBarView(
+          controller: _tabs,
+          children: [
+            _buildTab('daily'),
+            _buildTab('reguler'),
+            _buildTab('pro'),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_errorCode.isNotEmpty) return _buildError();
+  Widget _buildTab(String key) {
+    final st = _state[key]!;
+    if (st.loading) return const Center(child: CircularProgressIndicator());
+    if (st.error.isNotEmpty) return _buildError(st.error, key);
 
-    final top = (_data['top'] ?? []) as List<dynamic>;
-    final me = _data['me'] as Map<String, dynamic>?;
-    final participants = (_data['participants'] ?? 0) as int;
-    final ikut = _data['ikut_papan'] == true;
+    final d = st.data;
+    final top = (d['top'] ?? []) as List<dynamic>;
+    final me = d['me'] as Map<String, dynamic>?;
+    final peserta = (d['participants'] ?? 0) as int;
+    final ikut = d['ikut_papan'] == true;
+    final terverifikasi = d['terverifikasi'] == true;
+    final isDaily = key == 'daily';
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () => _load(key),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         children: [
-          Text('leaderboard.daily_title'.tr(),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            isDaily
+                ? 'leaderboard.daily_title'.tr()
+                : (key == 'reguler'
+                    ? 'leaderboard.reguler_title'.tr()
+                    : 'leaderboard.pro_title'.tr()),
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 3),
-          Text('leaderboard.participants'.tr(args: ['$participants']),
-              style: const TextStyle(fontSize: 13, color: Colors.black54)),
-          const SizedBox(height: 16),
+          Text(
+            isDaily
+                ? 'leaderboard.participants'.tr(args: ['$peserta'])
+                : '${'leaderboard.participants_iq'.tr(args: ['$peserta'])} · ${key == 'reguler' ? 'leaderboard.reguler_desc'.tr() : 'leaderboard.pro_desc'.tr()}',
+            style: const TextStyle(fontSize: 12.5, color: Colors.black54),
+          ),
+          const SizedBox(height: 10),
+          _buildTrustNote(terverifikasi),
+          const SizedBox(height: 14),
 
-          // Kartu posisi sendiri — selalu tampil walau di luar 20 besar.
-          if (me != null) _buildMyRank(me, participants) else _buildNotPlayed(),
+          if (me != null)
+            _buildMyRank(me, peserta, isDaily)
+          else
+            _buildNoScore(key),
 
           if (me != null && !ikut) ...[
             const SizedBox(height: 10),
-            _buildJoinPrompt(),
+            _buildJoinPrompt(d['display_name'] as String?),
           ],
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           if (top.isEmpty)
             _buildEmpty()
           else
-            ...top.map((e) => _buildRow(e as Map<String, dynamic>)),
+            ...top.map((e) => _buildRow(e as Map<String, dynamic>, isDaily)),
         ],
       ),
     );
   }
 
-  Widget _buildMyRank(Map<String, dynamic> me, int participants) {
-    final secs = ((me['duration_ms'] ?? 0) as int) / 1000;
+  /// Kejujuran soal keandalan angka. Papan harian dinilai server; dua papan
+  /// lain memakai skor dari perangkat dan bisa dipalsukan. User berhak tahu.
+  Widget _buildTrustNote(bool terverifikasi) {
+    final warna = terverifikasi ? const Color(0xFF1B6B4C) : Colors.orange.shade800;
+    return Row(
+      children: [
+        Icon(terverifikasi ? Icons.verified_outlined : Icons.info_outline,
+            size: 15, color: warna),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            terverifikasi
+                ? 'leaderboard.verified'.tr()
+                : 'leaderboard.unverified'.tr(),
+            style: TextStyle(
+                fontSize: 11.5, color: warna, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMyRank(Map<String, dynamic> me, int peserta, bool isDaily) {
+    final detail = isDaily
+        ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s  ·  IQ ${me['iq_harian']}'
+        : 'IQ ${me['iq']}';
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _brand,
-        borderRadius: BorderRadius.circular(12),
-      ),
+          color: _brand, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Expanded(
@@ -222,18 +329,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 4),
                 Text(
-                  'leaderboard.rank_of'
-                      .tr(args: ['${me['rank']}', '$participants']),
+                  'leaderboard.rank_of'.tr(args: ['${me['rank']}', '$peserta']),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 19,
                       fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  '${me['correct']}/${me['total']}  ·  ${secs.toStringAsFixed(1)}s  ·  IQ ${me['iq_harian']}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
+                Text(detail,
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ),
@@ -243,7 +348,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
-  Widget _buildNotPlayed() {
+  Widget _buildNoScore(String key) {
+    final desc = key == 'daily'
+        ? 'leaderboard.not_played_desc'.tr()
+        : (key == 'reguler'
+            ? 'leaderboard.no_score_reguler'.tr()
+            : 'leaderboard.no_score_pro'.tr());
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -254,34 +365,40 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('leaderboard.not_played_title'.tr(),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 4),
-          Text('leaderboard.not_played_desc'.tr(),
-              style: const TextStyle(fontSize: 13, color: Colors.black54)),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: _gold, foregroundColor: Colors.white),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const DailyChallengeScreen()),
-                );
-                if (mounted) _load();
-              },
-              child: Text('leaderboard.btn_play'.tr()),
-            ),
+          Text(
+            key == 'daily'
+                ? 'leaderboard.not_played_title'.tr()
+                : 'leaderboard.no_score_title'.tr(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
+          const SizedBox(height: 4),
+          Text(desc,
+              style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          if (key == 'daily') ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _gold, foregroundColor: Colors.white),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DailyChallengeScreen()),
+                  );
+                  if (mounted) _reloadAll();
+                },
+                child: Text('leaderboard.btn_play'.tr()),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildJoinPrompt() {
+  Widget _buildJoinPrompt(String? current) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -301,7 +418,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: _askDisplayName,
+              onPressed: () => _askDisplayName(current),
               icon: const Icon(Icons.badge_outlined, size: 18),
               label: Text('leaderboard.btn_set_name'.tr()),
             ),
@@ -311,10 +428,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
-  Widget _buildRow(Map<String, dynamic> r) {
+  Widget _buildRow(Map<String, dynamic> r, bool isDaily) {
     final rank = r['rank'] as int;
     final isMe = r['saya'] == true;
-    final secs = ((r['duration_ms'] ?? 0) as int) / 1000;
 
     Color medal(int n) {
       if (n == 1) return const Color(0xFFD4A017);
@@ -322,6 +438,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       if (n == 3) return const Color(0xFFB07040);
       return Colors.grey.shade400;
     }
+
+    final sub = isDaily
+        ? '${r['correct']}/${r['total']}  ·  ${(((r['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s'
+        : null;
+    final iq = isDaily ? r['iq_harian'] : r['iq'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -337,16 +458,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       child: Row(
         children: [
           SizedBox(
-            width: 34,
-            child: Text(
-              '$rank',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: rank <= 3 ? 19 : 15,
-                color: medal(rank),
-              ),
-            ),
+            width: 36,
+            child: Text('$rank',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: rank <= 3 ? 19 : 15,
+                    color: medal(rank))),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -365,25 +483,25 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     color: isMe ? _brand : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${r['correct']}/${r['total']}  ·  ${secs.toStringAsFixed(1)}s',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
-                ),
+                if (sub != null) ...[
+                  const SizedBox(height: 2),
+                  Text(sub,
+                      style: const TextStyle(
+                          fontSize: 12, color: Colors.black54)),
+                ],
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'IQ ${r['iq_harian']}',
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.bold, color: _brand),
-            ),
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(6)),
+            child: Text('IQ $iq',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _brand)),
           ),
         ],
       ),
@@ -392,10 +510,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   Widget _buildEmpty() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
+      padding: const EdgeInsets.symmetric(vertical: 36),
       child: Column(
         children: [
-          Icon(Icons.hourglass_empty, size: 52, color: Colors.grey.shade400),
+          Icon(Icons.hourglass_empty, size: 50, color: Colors.grey.shade400),
           const SizedBox(height: 12),
           Text('leaderboard.empty_title'.tr(),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -408,13 +526,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
-  Widget _buildError() {
+  Widget _buildError(String code, String key) {
     late IconData icon;
     late String title;
     late String desc;
     var canRetry = true;
 
-    switch (_errorCode) {
+    switch (code) {
       case DailyChallengeService.needLogin:
         icon = Icons.account_circle_outlined;
         title = 'leaderboard.need_login_title'.tr();
@@ -438,7 +556,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 60, color: Colors.grey.shade500),
+            Icon(icon, size: 58, color: Colors.grey.shade500),
             const SizedBox(height: 15),
             Text(title,
                 textAlign: TextAlign.center,
@@ -451,7 +569,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             const SizedBox(height: 22),
             if (canRetry)
               ElevatedButton(
-                onPressed: _load,
+                onPressed: () => _load(key),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: _brand, foregroundColor: Colors.white),
                 child: Text('leaderboard.btn_retry'.tr()),

@@ -702,6 +702,19 @@
     "offline_desc": "Papan peringkat butuh internet.",
     "failed_title": "Gagal memuat",
     "failed_desc": "Terjadi kendala di server. Coba lagi beberapa saat lagi.",
-    "banner_desc": "Lihat posisimu di antara peserta lain hari ini."
+    "banner_desc": "Lihat posisimu di antara peserta lain hari ini.",
+    "tab_daily": "Harian",
+    "tab_reguler": "IQ Reguler",
+    "tab_pro": "IQ PRO",
+    "reguler_title": "Top 100 IQ Reguler",
+    "pro_title": "Top 50 IQ PRO",
+    "reguler_desc": "Dihitung dari tes kognitif gratis yang sudah kamu kerjakan.",
+    "pro_desc": "Dihitung dari Tes IQ Komprehensif (PRO).",
+    "verified": "Dinilai server — tidak bisa dipalsukan",
+    "unverified": "Skor dihitung di perangkat, jadi belum terverifikasi",
+    "no_score_title": "Kamu belum punya skor di papan ini",
+    "no_score_reguler": "Kerjakan tes kognitif gratis (Verbal, Deret, Logika, Spasial, Klasifikasi) lalu sinkronkan.",
+    "no_score_pro": "Kerjakan Tes IQ Komprehensif (PRO) lalu sinkronkan.",
+    "participants_iq": "{} peserta"
   }
 }

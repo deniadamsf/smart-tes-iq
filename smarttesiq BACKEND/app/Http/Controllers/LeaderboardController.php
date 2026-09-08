@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyAttempt;
+use App\Models\UserIqScore;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,10 @@ class LeaderboardController extends Controller
     private const TZ = 'Asia/Jakarta';
 
     private const TOP_DAILY = 20;
+
+    private const TOP_REGULER = 100;
+
+    private const TOP_PRO = 50;
 
     private function today(): string
     {
@@ -70,6 +75,8 @@ class LeaderboardController extends Controller
 
         return response()->json([
             'status' => 'ok',
+            // Papan harian dinilai SERVER, jadi angkanya tidak bisa dipalsukan.
+            'terverifikasi' => true,
             'challenge_date' => $date,
             'participants' => DailyAttempt::participantsOn($date),
             'display_name' => $user->display_name,
@@ -139,6 +146,73 @@ class LeaderboardController extends Controller
         return response()->json([
             'status' => 'ok',
             'display_name' => $name,
+        ]);
+    }
+
+    // =====================================================================
+    // GET /api/leaderboard/reguler  |  GET /api/leaderboard/pro
+    // =====================================================================
+
+    public function reguler(Request $request): JsonResponse
+    {
+        return $this->papanIq($request, 'iq_reguler', self::TOP_REGULER);
+    }
+
+    public function pro(Request $request): JsonResponse
+    {
+        return $this->papanIq($request, 'iq_pro', self::TOP_PRO);
+    }
+
+    /**
+     * Papan peringkat berbasis skor IQ yang sudah dihitung di muka.
+     *
+     * PERINGATAN KEJUJURAN: berbeda dengan papan harian, skor di sini
+     * dihitung di HP lalu dikirim lewat /sync. Validasi hanya bisa menolak
+     * angka yang mustahil, bukan angka masuk akal yang dipalsukan. Karena
+     * itu 'terverifikasi' bernilai false di sini dan true di papan harian --
+     * aplikasi menampilkan bedanya supaya user tidak salah menyangka.
+     */
+    private function papanIq(Request $request, string $kolom, int $limit): JsonResponse
+    {
+        $user = $request->user();
+
+        $top = UserIqScore::query()
+            ->join('users', 'users.id', '=', 'user_iq_scores.user_id')
+            ->whereNotNull("user_iq_scores.{$kolom}")
+            ->whereNotNull('users.display_name')
+            ->orderByDesc("user_iq_scores.{$kolom}")
+            // Penentu seri stabil, supaya urutan tidak berubah-ubah antar
+            // permintaan ketika skornya sama persis.
+            ->orderBy('user_iq_scores.user_id')
+            ->limit($limit)
+            ->get([
+                'users.display_name',
+                "user_iq_scores.{$kolom} as iq",
+                'user_iq_scores.user_id',
+            ]);
+
+        $milikSaya = UserIqScore::query()
+            ->where('user_id', $user->id)
+            ->value($kolom);
+
+        return response()->json([
+            'status' => 'ok',
+            'papan' => $kolom,
+            'terverifikasi' => false,
+            'participants' => UserIqScore::whereNotNull($kolom)->count(),
+            'display_name' => $user->display_name,
+            'ikut_papan' => $user->display_name !== null,
+            'top' => $top->values()->map(fn ($r, $i) => [
+                'rank' => $i + 1,
+                'display_name' => $r->display_name,
+                'iq' => (int) $r->iq,
+                'saya' => (int) $r->user_id === (int) $user->id,
+            ])->all(),
+            'me' => $milikSaya === null ? null : [
+                // Skor yang sama berbagi peringkat yang sama.
+                'rank' => UserIqScore::where($kolom, '>', $milikSaya)->count() + 1,
+                'iq' => (int) $milikSaya,
+            ],
         ]);
     }
 }

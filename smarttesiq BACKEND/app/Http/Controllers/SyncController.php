@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\TestResult;
+use App\Models\UserIqScore;
 use App\Models\ChatHistory;
 use Illuminate\Support\Facades\Log;
 
@@ -63,6 +64,17 @@ class SyncController extends Controller
                         ]
                     );
                 }
+            }
+
+            // Perbarui skor IQ terhitung untuk papan peringkat.
+            // HANYA MEMBACA test_results dan menulis ke user_iq_scores --
+            // tidak ada baris hasil tes yang tersentuh. Dibungkus try/catch
+            // supaya kegagalan di sini tidak pernah menggagalkan backup data
+            // user, yang jauh lebih penting daripada papan peringkat.
+            try {
+                UserIqScore::recomputeFor($user->id);
+            } catch (\Throwable $e) {
+                Log::warning('Gagal hitung ulang skor IQ: ' . $e->getMessage());
             }
 
             // 2. Simpan Data Chat

@@ -702,6 +702,19 @@
     "offline_desc": "The leaderboard needs internet.",
     "failed_title": "Failed to load",
     "failed_desc": "Something went wrong on the server. Please try again shortly.",
-    "banner_desc": "See where you stand among today's players."
+    "banner_desc": "See where you stand among today's players.",
+    "tab_daily": "Daily",
+    "tab_reguler": "Regular IQ",
+    "tab_pro": "PRO IQ",
+    "reguler_title": "Top 100 Regular IQ",
+    "pro_title": "Top 50 PRO IQ",
+    "reguler_desc": "Computed from the free cognitive tests you have taken.",
+    "pro_desc": "Computed from the Comprehensive IQ Test (PRO).",
+    "verified": "Server-scored - cannot be faked",
+    "unverified": "Scores are computed on-device, so they are unverified",
+    "no_score_title": "You have no score on this board yet",
+    "no_score_reguler": "Take the free cognitive tests (Verbal, Sequence, Logic, Spatial, Classification), then sync.",
+    "no_score_pro": "Take the Comprehensive IQ Test (PRO), then sync.",
+    "participants_iq": "{} players"
   }
 }

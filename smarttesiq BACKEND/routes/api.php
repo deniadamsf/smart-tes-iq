@@ -32,4 +32,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // ---------------------------------------------------------------
     Route::get('/leaderboard/daily', [LeaderboardController::class, 'daily']);
     Route::post('/leaderboard/display-name', [LeaderboardController::class, 'setDisplayName']);
+    Route::get('/leaderboard/reguler', [LeaderboardController::class, 'reguler']);
+    Route::get('/leaderboard/pro', [LeaderboardController::class, 'pro']);
 });
