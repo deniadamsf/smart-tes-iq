@@ -4,7 +4,7 @@ Proyek ini terdiri dari dua sub-proyek dalam satu folder:
 
 | Folder | Isi |
 |---|---|
-| `smart_tes_iq APK/` | Aplikasi Flutter (Dart ^3.11.0), rilis `2.2.2` di Play Store; berikutnya `2.3.0+14` |
+| `smart_tes_iq APK/` | Aplikasi Flutter (Dart ^3.11.0), rilis `2.3.0` di Play Store; berikutnya `2.3.1+15` |
 | `smarttesiq BACKEND/` | API Laravel 12 (PHP ^8.2, Sanctum 4, MySQL) |
 | `u731410318_smart_tes_iq.sql` | Dump skema + data produksi (~1,2 MB) |
 
@@ -66,7 +66,7 @@ Tetap konfirmasi dulu untuk: deploy, push ke remote, menaikkan version/build num
 
 ## 3. Aturan teknis
 
-**Aplikasi sudah rilis di perangkat user (2.2.1 dan 2.2.2).** Ini membatasi dua hal:
+**Aplikasi sudah rilis di perangkat user (2.2.1, 2.2.2, 2.3.0).** Ini membatasi dua hal:
 
 1. **Kontrak API** — mengubah nama field atau bentuk response di `routes/api.php` akan merusak client lama. Tambah field baru, jangan ubah atau hapus yang lama tanpa jalur kompatibilitas.
 2. **Skema SQLite lokal** — perubahan di `lib/helpers/database_helper.dart` butuh jalur upgrade untuk user lama, bukan drop-create.

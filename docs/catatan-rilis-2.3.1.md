@@ -1,24 +1,19 @@
-# Catatan Rilis — SMART TES IQ 2.3.0 (14)
+# Catatan Rilis — SMART TES IQ 2.3.1 (15)
 
-Sudah ada di Play Store: 2.2.1, lalu 2.2.2 (perbaikan Math Rush).
-
-Naik ke 2.3.0 karena rilis ini menambah fitur besar, bukan perbaikan kecil.
-Nomor build 14 dipilih dengan sedikit ruang di atas build 2.2.2.
-**Kalau build number 2.2.2 ternyata 14 atau lebih, angka ini harus dinaikkan
-lagi** — Play Store menolak versionCode yang tidak lebih tinggi.
+Sudah ada di Play Store: 2.2.1, 2.2.2, lalu 2.3.0.
 
 ## Judul rilis
 
 Indonesia:
 
 ```
-2.3.0 (14) — Tantangan Harian & Papan Peringkat
+2.3.1 (15) — Tantangan Harian & Papan Peringkat
 ```
 
 English:
 
 ```
-2.3.0 (14) — Daily Challenge & Leaderboards
+2.3.1 (15) — Daily Challenge & Leaderboards
 ```
 
 ## What's new — Indonesia (id-ID)
@@ -31,13 +26,13 @@ PAPAN PERINGKAT
 Lihat posisimu di papan Harian, IQ Reguler, dan IQ PRO. Nama tampilan kamu pilih sendiri; nama akun Google tidak pernah ditampilkan.
 
 ANALISA AI
-Ulasan mendalam kekuatan kognitifmu tiap selesai tantangan.
+Ulasan mendalam kekuatanmu tiap selesai tantangan, plus kalender riwayat peringkat harian.
 
 BERBAGI
 Bagikan peringkatmu sebagai kartu.
 
 PERBAIKAN
-Tampilan grafik di beranda dan profil, serta perhitungan kredit.
+Tampilan grafik dan perhitungan kredit.
 ```
 
 ## What's new — English (en-US)
@@ -50,13 +45,13 @@ LEADERBOARDS
 See where you stand on the Daily, Regular IQ, and PRO IQ boards. You pick your own display name; your Google name is never shown.
 
 AI ANALYSIS
-An in-depth read on your cognitive strengths after each challenge.
+An in-depth read on your cognitive strengths after each challenge, plus a calendar of your daily ranks.
 
 SHARING
 Share your rank as a card.
 
 FIXES
-Chart layout on home and profile, plus credit calculation.
+Chart layout and credit calculation.
 ```
 
 ---
@@ -68,6 +63,8 @@ Chart layout on home and profile, plus credit calculation.
 - Layar aturan sebelum tes dimulai; hitungan waktu baru berjalan setelah
   user menekan tombol mulai, bukan saat layar dibuka.
 - Pita nomor 1-30 supaya soal yang terlewat langsung terlihat.
+- Kalender riwayat berisi peringkat harian di layar pengantar dan layar
+  "sudah selesai hari ini".
 - Tiga papan peringkat: Harian, IQ Reguler, dan IQ PRO.
 - Nama tampilan bersifat opt-in; `users.name` dari akun Google tidak
   pernah dipakai di papan mana pun.
@@ -76,8 +73,7 @@ Chart layout on home and profile, plus credit calculation.
 - Banner iklan di bawah layar tantangan.
 - Perbaikan rumus IQ Reguler: hasil tes PRO tidak lagi tercampur.
 - Perbaikan overflow grafik di beranda dan profil.
-- Perbaikan perhitungan kredit: saldo kini `diberikan - terpakai`,
-  sehingga tidak bisa dipulihkan penuh setelah dipakai.
+- Perbaikan perhitungan kredit: saldo kini `diberikan - terpakai`.
 
 ## Sebelum mengunggah
 
