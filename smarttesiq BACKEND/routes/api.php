@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\DailyChallengeController;
+use App\Http\Controllers\LeaderboardController;
 
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
@@ -23,4 +24,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/daily/start', [DailyChallengeController::class, 'start']);
     Route::post('/daily/submit', [DailyChallengeController::class, 'submit']);
     Route::get('/daily/me', [DailyChallengeController::class, 'me']);
+
+    // ---------------------------------------------------------------
+    // PAPAN PERINGKAT (Fase 2)
+    // Jalur baru juga. Nama tampilan bersifat opt-in: user yang belum
+    // mengisinya tidak muncul di papan mana pun.
+    // ---------------------------------------------------------------
+    Route::get('/leaderboard/daily', [LeaderboardController::class, 'daily']);
+    Route::post('/leaderboard/display-name', [LeaderboardController::class, 'setDisplayName']);
 });

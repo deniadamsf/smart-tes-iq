@@ -360,32 +360,14 @@ class DailyChallengeController extends Controller
             'total' => $a->total,
             'duration_ms' => $a->duration_ms,
             'iq_harian' => $a->iq_harian,
-            'rank_today' => $this->rankOf($a),
-            'participants' => $this->participants($a->challenge_date->toDateString()),
+            'rank_today' => $a->rank(),
+            'participants' => DailyAttempt::participantsOn($a->challenge_date->toDateString()),
         ];
     }
 
-    /** Peringkat: benar terbanyak dulu, lalu tercepat. */
-    private function rankOf(DailyAttempt $a): int
-    {
-        return DailyAttempt::where('challenge_date', $a->challenge_date->toDateString())
-            ->whereNotNull('submitted_at')
-            ->where(function ($q) use ($a) {
-                $q->where('correct', '>', $a->correct)
-                    ->orWhere(function ($q2) use ($a) {
-                        $q2->where('correct', $a->correct)
-                            ->where('duration_ms', '<', $a->duration_ms);
-                    });
-            })
-            ->count() + 1;
-    }
-
-    private function participants(string $date): int
-    {
-        return DailyAttempt::where('challenge_date', $date)
-            ->whereNotNull('submitted_at')
-            ->count();
-    }
+    // Peringkat dan jumlah peserta memakai DailyAttempt::rank() dan
+    // ::participantsOn(). Rumusnya sengaja hanya ada SATU salinan di model,
+    // supaya angka di layar hasil dan di papan peringkat tidak bisa berbeda.
 
     /** Hari beruntun sampai hari ini (atau kemarin, kalau hari ini belum main). */
     private function streak($dates): int
