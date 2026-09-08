@@ -5,6 +5,7 @@ import 'package:easy_localization/easy_localization.dart';
 import '../helpers/database_helper.dart';
 import '../helpers/rewarded_ad_manager.dart';
 import '../services/daily_challenge_service.dart';
+import 'leaderboard_screen.dart';
 
 /// Tantangan IQ Harian.
 ///
@@ -629,15 +630,23 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           const SizedBox(height: 26),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+              ),
+              icon: const Icon(Icons.leaderboard),
+              label: Text('leaderboard.appbar_title'.tr()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _brand,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: Text('daily.btn_close'.tr()),
             ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('daily.btn_close'.tr()),
           ),
         ],
       ),

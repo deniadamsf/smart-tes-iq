@@ -6,6 +6,7 @@ import 'package:easy_localization/easy_localization.dart'; // BARU: Untuk terjem
 import '../helpers/database_helper.dart';
 import '../services/auth_service.dart';
 import 'daily_challenge_screen.dart';
+import 'leaderboard_screen.dart';
 import '../helpers/test_label_helper.dart'; // BARU: Untuk menerjemahkan judul tes di layar
 import 'test_screen.dart';
 import 'verbal_test_screen.dart';
@@ -549,6 +550,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyChallengeScreen())).then((_) => _loadProgress());
                     },
                   ),
+                ),
+              ),
+            ),
+
+            // =====================================
+            // 0b. BANNER PAPAN PERINGKAT
+            // =====================================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  leading: const Icon(Icons.leaderboard, color: Color(0xFFEF6C00), size: 32),
+                  title: Text('leaderboard.appbar_title'.tr(),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  subtitle: Text('leaderboard.banner_desc'.tr(),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const LeaderboardScreen()));
+                  },
                 ),
               ),
             ),
