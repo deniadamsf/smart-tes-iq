@@ -636,7 +636,7 @@
   "daily": {
     "appbar_title": "Daily IQ Challenge",
     "intro_title": "Today's Challenge",
-    "intro_desc": "5 questions, {} minutes. Everyone gets the same questions.",
+    "intro_desc": "30 mixed questions, {} minutes. Everyone gets the same questions.",
     "intro_note": "Ranking is by correct answers first, then speed.",
     "btn_watch_start": "Watch ad & start",
     "btn_later": "Maybe later",
@@ -669,7 +669,12 @@
     "streak": "{}-day streak",
     "question_of": "Question {} of {}",
     "ad_unavailable": "Ad unavailable, you can still continue.",
-    "banner_desc": "New questions daily. Race against other players."
+    "banner_desc": "New questions daily. Race against other players.",
+    "prompt_ai": "You are an AI psychologist. The user just finished a Daily IQ Challenge of {} mixed questions (verbal, number sequence, logical reasoning, spatial, image classification).\nResult: {} correct answers, daily IQ score {}, completion time {} seconds, rank {} of {} players today.\nGive a short analysis of their cognitive strengths, then one concrete suggestion for tomorrow. English, warm and motivating, max 120 words. Use **bold** for key terms.",
+    "ai_title": "AI Analysis",
+    "ai_loading": "AI is analysing your result...",
+    "ai_failed": "AI analysis could not load. Your score is still saved.",
+    "soal": "questions"
   },
   "leaderboard": {
     "appbar_title": "Leaderboard",

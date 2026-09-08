@@ -187,9 +187,14 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isCompleted ? color : Colors.grey.shade500)
         ),
         const SizedBox(height: 4),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 1000), curve: Curves.easeOutQuart, width: 22, height: isCompleted ? (percentage * 80) : 12,
-          decoration: BoxDecoration(color: isCompleted ? color : Colors.grey.shade300, borderRadius: BorderRadius.circular(6)),
+        // Flexible: pada 100% tinggi batang + teks + label melebihi tinggi
+        // wadahnya beberapa piksel. Dibungkus Flexible, batang terjepit ke
+        // ruang yang benar-benar tersisa alih-alih meluber.
+        Flexible(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 1000), curve: Curves.easeOutQuart, width: 22, height: isCompleted ? (percentage * 80) : 12,
+            decoration: BoxDecoration(color: isCompleted ? color : Colors.grey.shade300, borderRadius: BorderRadius.circular(6)),
+          ),
         ),
         const SizedBox(height: 8),
         Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
@@ -418,13 +423,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(isCognitiveFinished ? Icons.analytics : Icons.lock, color: isCognitiveFinished ? Colors.orange : Colors.grey, size: 24),
-                            const SizedBox(width: 8),
-                            Text('home.analysis_title'.tr(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
-                          ],
+                        // Expanded + Flexible: tanpa ini judul memakai lebar
+                        // penuh dan toggle Reguler/PRO terdorong keluar layar.
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(isCognitiveFinished ? Icons.analytics : Icons.lock, color: isCognitiveFinished ? Colors.orange : Colors.grey, size: 24),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text('home.analysis_title'.tr(), overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
 
                         if (_hasCompletedPro)
                           Container(

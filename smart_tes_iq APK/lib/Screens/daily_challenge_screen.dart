@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:http/http.dart' as http;
 import 'package:easy_localization/easy_localization.dart';
 
 import '../helpers/database_helper.dart';
@@ -24,6 +28,20 @@ enum _Phase { loading, intro, playing, submitting, resultGate, result, blocked }
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   static const Color _brand = Color(0xFF0D47A1);
+
+  /// Hanya untuk teks pengantar. Batas waktu yang berlaku tetap datang dari
+  /// server lewat 'sisa_detik'; kalau TIME_LIMIT_SEC di backend berubah,
+  /// angka ini ikut disesuaikan agar tidak membingungkan.
+  static const int _menit = 15;
+
+  // Model yang sama dipakai tujuh layar analisa lain di aplikasi ini.
+  static const String _proxyUrl =
+      'https://smarttesiq.cellanoma.my.id/public/gemini_proxy.php?model=gemini-2.5-flash-lite';
+  static const String _appSecret = 'CLARA_RAHASIA_123_SUPER_AMAN';
+
+  String _aiAnalysis = '';
+  bool _loadingAi = false;
+  bool _aiGagal = false;
 
   _Phase _phase = _Phase.loading;
   String _blockCode = DailyChallengeService.failed;
@@ -240,10 +258,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     }
 
     if (!mounted) return;
-    setState(() {
-      _result = r;
-      _phase = gate ? _Phase.resultGate : _Phase.result;
-    });
+    setState(() => _result = r);
+
+    if (gate) {
+      setState(() => _phase = _Phase.resultGate);
+    } else {
+      _masukHasil();
+    }
   }
 
   void _gateResult() {
@@ -253,19 +274,93 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     RewardedAdManager.showAd(
       context,
       () {
-        if (mounted) setState(() { _busy = false; _phase = _Phase.result; });
+        if (mounted) {
+          setState(() => _busy = false);
+          _masukHasil();
+        }
       },
       onUnavailable: () {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('daily.ad_unavailable'.tr())),
         );
-        setState(() { _busy = false; _phase = _Phase.result; });
+        setState(() => _busy = false);
+        _masukHasil();
       },
       onDismissed: () {
         if (mounted) setState(() => _busy = false);
       },
     );
+  }
+
+  /// Masuk ke layar hasil sekaligus meminta analisa AI.
+  ///
+  /// Analisa TIDAK digerbangi iklan terpisah: user sudah menonton satu iklan
+  /// untuk membuka hasil ini. Menambah gerbang kedua di sini berlebihan.
+  void _masukHasil() {
+    setState(() => _phase = _Phase.result);
+    _ambilAnalisaAi();
+  }
+
+  Future<void> _ambilAnalisaAi() async {
+    final r = _result;
+    if (r == null || _loadingAi || _aiAnalysis.isNotEmpty) return;
+
+    setState(() {
+      _loadingAi = true;
+      _aiGagal = false;
+    });
+
+    try {
+      final prompt = 'daily.prompt_ai'.tr(args: [
+        '${r['total'] ?? 0}',
+        '${r['correct'] ?? 0}',
+        '${r['iq_harian'] ?? 0}',
+        '${(((r['duration_ms'] ?? 0) as int) / 1000).round()}',
+        '${r['rank_today'] ?? '-'}',
+        '${r['participants'] ?? 0}',
+      ]);
+
+      final res = await http
+          .post(
+            Uri.parse(_proxyUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $_appSecret',
+            },
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {'text': prompt}
+                  ]
+                }
+              ]
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (!mounted) return;
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final teks = data['candidates'][0]['content']['parts'][0]['text'];
+        setState(() {
+          _aiAnalysis = teks.toString();
+          _loadingAi = false;
+        });
+      } else {
+        throw Exception('Status ${res.statusCode}');
+      }
+    } catch (_) {
+      // Analisa gagal bukan hal fatal: skor sudah tersimpan di server.
+      if (mounted) {
+        setState(() {
+          _loadingAi = false;
+          _aiGagal = true;
+        });
+      }
+    }
   }
 
   // ===================================================================
@@ -327,7 +422,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                     fontSize: 24, fontWeight: FontWeight.bold, color: _brand)),
             const SizedBox(height: 10),
             Text(
-              'daily.intro_desc'.tr(args: ['5']),
+              'daily.intro_desc'.tr(args: ['$_menit']),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 15, color: Colors.black87),
             ),
@@ -627,6 +722,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 18),
+          _buildAnalisaAi(),
+
           const SizedBox(height: 26),
           SizedBox(
             width: double.infinity,
@@ -647,6 +745,73 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('daily.btn_close'.tr()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalisaAi() {
+    if (_loadingAi) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('daily.ai_loading'.tr(),
+                  style: const TextStyle(fontSize: 13, color: Colors.black54)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_aiGagal) {
+      return Text('daily.ai_failed'.tr(),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12.5, color: Colors.black45));
+    }
+
+    if (_aiAnalysis.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 18, color: _brand),
+              const SizedBox(width: 7),
+              Text('daily.ai_title'.tr(),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14, color: _brand)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          MarkdownBody(
+            data: _aiAnalysis,
+            styleSheet: MarkdownStyleSheet(
+              p: const TextStyle(fontSize: 13.5, height: 1.5, color: Colors.black87),
+              strong: const TextStyle(fontWeight: FontWeight.bold, color: _brand),
+            ),
           ),
         ],
       ),

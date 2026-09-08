@@ -636,7 +636,7 @@
   "daily": {
     "appbar_title": "Tantangan IQ Harian",
     "intro_title": "Tantangan Hari Ini",
-    "intro_desc": "5 soal, {} menit. Semua peserta mengerjakan soal yang sama.",
+    "intro_desc": "30 soal campuran, {} menit. Semua peserta mengerjakan soal yang sama.",
     "intro_note": "Peringkat dihitung dari jumlah benar, lalu kecepatan.",
     "btn_watch_start": "Tonton iklan & mulai",
     "btn_later": "Nanti saja",
@@ -669,7 +669,12 @@
     "streak": "Runtutan {} hari",
     "question_of": "Soal {} dari {}",
     "ad_unavailable": "Iklan tidak tersedia, kamu tetap bisa lanjut.",
-    "banner_desc": "Soal baru tiap hari. Adu cepat dengan peserta lain."
+    "banner_desc": "Soal baru tiap hari. Adu cepat dengan peserta lain.",
+    "prompt_ai": "Kamu adalah psikolog AI. Pengguna baru saja menyelesaikan Tantangan IQ Harian berisi {} soal campuran (verbal, deret angka, penalaran logis, spasial, klasifikasi gambar).\nHasilnya: {} jawaban benar, skor IQ harian {}, waktu pengerjaan {} detik, peringkat {} dari {} peserta hari ini.\nBerikan analisa singkat kekuatan kognitifnya, lalu satu saran konkret untuk esok hari. Bahasa Indonesia, hangat dan memotivasi, maksimal 120 kata. Gunakan **tebal** untuk kata kunci penting.",
+    "ai_title": "Analisa AI",
+    "ai_loading": "AI sedang menganalisa hasilmu...",
+    "ai_failed": "Analisa AI gagal dimuat. Skormu tetap tersimpan.",
+    "soal": "soal"
   },
   "leaderboard": {
     "appbar_title": "Papan Peringkat",

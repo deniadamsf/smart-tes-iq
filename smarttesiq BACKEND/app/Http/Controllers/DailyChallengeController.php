@@ -30,12 +30,16 @@ class DailyChallengeController extends Controller
     /** Zona waktu penentu pergantian hari. */
     private const TZ = 'Asia/Jakarta';
 
-    private const FREE_PER_DAY = 4;
+    /** 24 gratis + 6 PRO = 30 soal, mempertahankan porsi PRO 20%. */
+    private const FREE_PER_DAY = 24;
 
-    private const PRO_PER_DAY = 1;
+    private const PRO_PER_DAY = 6;
 
-    /** Batas waktu pengerjaan; juga jadi batas atas durasi tercatat. */
-    private const TIME_LIMIT_SEC = 300;
+    /**
+     * Batas waktu pengerjaan; juga jadi batas atas durasi tercatat.
+     * 30 soal x 30 detik. Kalau jumlah soal diubah, angka ini ikut.
+     */
+    private const TIME_LIMIT_SEC = 900;
 
     private function today(): string
     {
@@ -223,31 +227,46 @@ class DailyChallengeController extends Controller
             $cats = QuestionBank::where('pool', $pool)
                 ->distinct()
                 ->pluck('category')
-                ->shuffle();
+                ->shuffle()
+                ->values();
+
+            if ($cats->isEmpty()) {
+                return [];
+            }
+
+            // Bagi rata ke seluruh kategori, sisanya diberikan ke kategori
+            // yang kebetulan berada di urutan awal setelah diacak -- jadi
+            // kategori yang mendapat jatah lebih berganti tiap hari.
+            $n = $cats->count();
+            $dasar = intdiv($count, $n);
+            $sisa = $count % $n;
 
             $ids = [];
 
-            foreach ($cats as $cat) {
-                if (count($ids) >= $count) {
-                    break;
+            foreach ($cats as $i => $cat) {
+                $mau = $dasar + ($i < $sisa ? 1 : 0);
+                if ($mau < 1) {
+                    continue;
                 }
-                $id = QuestionBank::where('pool', $pool)
+
+                $dapat = QuestionBank::where('pool', $pool)
                     ->where('category', $cat)
                     ->orderByRaw('last_used_on IS NULL DESC')
                     ->orderBy('last_used_on')
                     ->orderBy('use_count')
-                    ->limit(8)
+                    // Jendela lebih lebar dari jatahnya supaya masih ada
+                    // ruang acak, tanpa kehilangan rotasi soal terlama.
+                    ->limit($mau * 3)
                     ->pluck('id')
                     ->shuffle()
-                    ->first();
+                    ->take($mau)
+                    ->all();
 
-                if ($id) {
-                    $ids[] = $id;
-                }
+                $ids = array_merge($ids, $dapat);
             }
 
-            // Kalau kategori yang tersedia lebih sedikit daripada jumlah soal
-            // yang diminta, lengkapi dari sisa mana pun.
+            // Kalau ada kategori yang stoknya kurang dari jatahnya,
+            // lengkapi dari sisa mana pun agar jumlahnya tetap utuh.
             $kurang = $count - count($ids);
             if ($kurang > 0) {
                 $extra = QuestionBank::where('pool', $pool)

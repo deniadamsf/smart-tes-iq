@@ -505,7 +505,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text('${(percentage * 100).toInt()}%', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: percentage > 0 ? color : Colors.grey)),
         const SizedBox(height: 5),
-        AnimatedContainer(duration: const Duration(milliseconds: 1000), curve: Curves.easeOutCubic, width: 24, height: percentage > 0 ? (100 * percentage) : 10, decoration: BoxDecoration(color: percentage > 0 ? color : Colors.grey.shade300, borderRadius: BorderRadius.circular(6))),
+        // Lihat catatan yang sama di home_screen._buildBar: pada 100% batang
+        // meluber beberapa piksel tanpa Flexible.
+        Flexible(
+          child: AnimatedContainer(duration: const Duration(milliseconds: 1000), curve: Curves.easeOutCubic, width: 24, height: percentage > 0 ? (100 * percentage) : 10, decoration: BoxDecoration(color: percentage > 0 ? color : Colors.grey.shade300, borderRadius: BorderRadius.circular(6))),
+        ),
         const SizedBox(height: 8),
         Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54)),
       ],
