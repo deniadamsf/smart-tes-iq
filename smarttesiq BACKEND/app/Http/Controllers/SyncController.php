@@ -10,22 +10,38 @@ use Illuminate\Support\Facades\Log;
 
 class SyncController extends Controller
 {
+    private const KOLOM_KREDIT = ['wartegg_credits', 'eq_sq_credits', 'kredit_iq_pro'];
+
+    /**
+     * Batas mutlak. Satu pembelian memberi +10 kredit
+     * (pro_iq_dashboard_screen.dart:108); nilai tertinggi yang benar-benar
+     * ada di produksi saat batas ini dipasang adalah 9. Tidak ada pemakaian
+     * wajar yang mendekati 500.
+     */
+    private const KREDIT_MAKS = 500;
+
+    /**
+     * Kenaikan maksimum dalam satu kali sync. Tiga kali pembelian berturut
+     * saat offline (+30) sudah tertampung; di atas itu tidak masuk akal.
+     */
+    private const KENAIKAN_MAKS_PER_SYNC = 30;
+
     // MENERIMA DATA DARI HP FLUTTER
     public function syncData(Request $request)
     {
         try {
             $user = $request->user();
 
-            // --- TAMBAHAN LOGIKA KOIN HIBRIDA ---
-            // Bandingkan koin di HP dengan koin di DB. Ambil nilai yang paling tinggi (max).
-            if ($request->has('wartegg_credits')) {
-                $user->wartegg_credits = max($user->wartegg_credits, $request->wartegg_credits);
-            }
-            if ($request->has('eq_sq_credits')) {
-                $user->eq_sq_credits = max($user->eq_sq_credits, $request->eq_sq_credits);
-            }
-            if ($request->has('kredit_iq_pro')) {
-                $user->kredit_iq_pro = max($user->kredit_iq_pro, $request->kredit_iq_pro);
+            // --- LOGIKA KOIN HIBRIDA ---
+            // Kredit hidup di SharedPreferences perangkat dan server tidak
+            // pernah memverifikasi pembelian ke Google. Mengambil nilai
+            // tertinggi adalah satu-satunya jalan pembelian sah sampai ke
+            // server sekaligus cara memulihkan kredit saat ganti HP, jadi
+            // perilaku itu DIPERTAHANKAN -- tapi sekarang dibatasi.
+            foreach (self::KOLOM_KREDIT as $kolom) {
+                if ($request->has($kolom)) {
+                    $user->{$kolom} = $this->kreditAman($user, $kolom, $request->input($kolom));
+                }
             }
             $user->save();
             // ------------------------------------
@@ -139,5 +155,61 @@ class SyncController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Gagal menghapus: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Batasi kenaikan kredit yang dikirim client.
+     *
+     * MASALAHNYA: server tidak memverifikasi bukti pembelian ke Google,
+     * jadi nilai kredit sepenuhnya berasal dari client. Sebelum ini satu
+     * permintaan HTTP berisi kredit_iq_pro: 9999 langsung diterima apa
+     * adanya -- pembelian dalam aplikasi bisa dilewati sepenuhnya.
+     *
+     * INI MITIGASI, BUKAN PERBAIKAN TUNTAS. Selama bukti pembelian tidak
+     * diverifikasi ke Google Play Developer API, penyerang masih bisa
+     * menaikkan kredit sedikit demi sedikit lewat banyak permintaan.
+     * Yang berubah: dari sekali jalan tak terbatas menjadi lambat,
+     * terbatas, dan tercatat di log sehingga bisa terdeteksi.
+     *
+     * Kredit TIDAK PERNAH diturunkan di sini, sama seperti perilaku lama --
+     * menurunkannya akan merusak pemulihan kredit saat user ganti HP.
+     */
+    private function kreditAman($user, string $kolom, $dikirim): int
+    {
+        $sekarang = (int) ($user->{$kolom} ?? 0);
+
+        if (! is_numeric($dikirim)) {
+            return $sekarang;
+        }
+
+        $diminta = (int) $dikirim;
+
+        // Turun atau sama: pertahankan nilai server (perilaku lama).
+        if ($diminta <= $sekarang) {
+            return $sekarang;
+        }
+
+        $batas = min($sekarang + self::KENAIKAN_MAKS_PER_SYNC, self::KREDIT_MAKS);
+        $baru = min($diminta, $batas);
+
+        if ($diminta > $baru) {
+            Log::warning('Kenaikan kredit dipotong batas', [
+                'user_id' => $user->id,
+                'kolom' => $kolom,
+                'sekarang' => $sekarang,
+                'diminta' => $diminta,
+                'diberikan' => $baru,
+            ]);
+        } else {
+            // Dicatat supaya pola pembelian yang tidak wajar bisa ditelusuri.
+            Log::info('Kredit naik', [
+                'user_id' => $user->id,
+                'kolom' => $kolom,
+                'dari' => $sekarang,
+                'ke' => $baru,
+            ]);
+        }
+
+        return $baru;
     }
 }
