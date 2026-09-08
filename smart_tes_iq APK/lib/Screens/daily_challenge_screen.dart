@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:easy_localization/easy_localization.dart';
 
 import '../helpers/database_helper.dart';
+import '../helpers/ad_helper.dart';
 import '../helpers/rewarded_ad_manager.dart';
 import '../services/daily_challenge_service.dart';
 import 'leaderboard_screen.dart';
@@ -24,7 +25,7 @@ class DailyChallengeScreen extends StatefulWidget {
   State<DailyChallengeScreen> createState() => _DailyChallengeScreenState();
 }
 
-enum _Phase { loading, intro, playing, submitting, resultGate, result, blocked }
+enum _Phase { loading, intro, rules, playing, submitting, resultGate, result, blocked }
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   static const Color _brand = Color(0xFF0D47A1);
@@ -56,6 +57,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   Map<String, dynamic>? _result;
   int _streak = 0;
   bool _busy = false;
+  bool _menyiapkanIklan = false;
+
+  /// Untuk menggulirkan pita nomor ke soal yang sedang dibuka. Dengan 30
+  /// soal, soal aktif akan keluar layar kalau pitanya tidak ikut bergeser.
+  final ScrollController _pitaCtrl = ScrollController();
 
   @override
   void initState() {
@@ -67,7 +73,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _pitaCtrl.dispose();
     super.dispose();
+  }
+
+  /// Geser pita nomor supaya soal aktif selalu terlihat.
+  void _gulirKePita(int index) {
+    if (!_pitaCtrl.hasClients) return;
+    const lebarItem = 46.0; // 38 lebar + 8 jarak
+    final target = (index * lebarItem) - 100;
+    _pitaCtrl.animateTo(
+      target.clamp(0.0, _pitaCtrl.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _keSoal(int index) {
+    setState(() => _current = index);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _gulirKePita(index));
   }
 
   // ===================================================================
@@ -100,13 +124,30 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   // ===================================================================
   // Gerbang iklan -> mulai
   // ===================================================================
-  void _gateStart() {
+  Future<void> _gateStart() async {
     if (_busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _menyiapkanIklan = true;
+    });
+
+    // Tunggu iklan benar-benar siap. Tanpa ini, saat iklan belum termuat
+    // gerbang langsung diteruskan dan iklannya tidak pernah tampil.
+    final siap = await RewardedAdManager.ensureLoaded();
+    if (!mounted) return;
+    setState(() => _menyiapkanIklan = false);
+
+    if (!siap) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('daily.ad_unavailable'.tr())),
+      );
+      _tampilkanAturan();
+      return;
+    }
 
     RewardedAdManager.showAd(
       context,
-      () => _begin(),
+      _tampilkanAturan,
       // Iklan tidak tersedia bukan salah user — tetap loloskan.
       // Kehilangan satu impresi jauh lebih murah daripada mengunci
       // user dari fiturnya.
@@ -115,12 +156,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('daily.ad_unavailable'.tr())),
         );
-        _begin();
+        _tampilkanAturan();
       },
       onDismissed: () {
         if (mounted) setState(() => _busy = false);
       },
     );
+  }
+
+  /// Layar aturan muncul SETELAH iklan, sebelum soal dimuat.
+  ///
+  /// /daily/start sengaja belum dipanggil di sini: server menandai
+  /// started_at saat endpoint itu diminta, jadi kalau dipanggil sekarang
+  /// waktu membaca aturan akan memakan jatah waktu mengerjakan.
+  void _tampilkanAturan() {
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _phase = _Phase.rules;
+    });
   }
 
   Future<void> _begin() async {
@@ -267,9 +321,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     }
   }
 
-  void _gateResult() {
+  Future<void> _gateResult() async {
     if (_busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _menyiapkanIklan = true;
+    });
+
+    final siap = await RewardedAdManager.ensureLoaded();
+    if (!mounted) return;
+    setState(() => _menyiapkanIklan = false);
+
+    if (!siap) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('daily.ad_unavailable'.tr())),
+      );
+      setState(() => _busy = false);
+      _masukHasil();
+      return;
+    }
 
     RewardedAdManager.showAd(
       context,
@@ -377,6 +447,17 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         foregroundColor: Colors.white,
       ),
       body: SafeArea(child: _buildBody()),
+      // Banner melayang di bawah, sama seperti layar tes lain.
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        ),
+        child: const SafeArea(
+          top: false,
+          child: Center(child: CustomBannerAd()),
+        ),
+      ),
     );
   }
 
@@ -397,6 +478,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         );
       case _Phase.intro:
         return _buildIntro();
+      case _Phase.rules:
+        return _buildRules();
       case _Phase.playing:
         return _buildPlaying();
       case _Phase.resultGate:
@@ -454,8 +537,14 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _busy ? null : _gateStart,
-                icon: const Icon(Icons.play_circle_outline),
-                label: Text('daily.btn_watch_start'.tr()),
+                icon: _menyiapkanIklan
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.play_circle_outline),
+                label: Text(_menyiapkanIklan
+                    ? 'daily.ad_preparing'.tr()
+                    : 'daily.btn_watch_start'.tr()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _brand,
                   foregroundColor: Colors.white,
@@ -470,6 +559,98 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRules() {
+    const nomor = ['rules_1', 'rules_2', 'rules_3', 'rules_4', 'rules_5', 'rules_6'];
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.assignment_outlined, color: _brand, size: 26),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text('daily.rules_title'.tr(),
+                          style: const TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
+                              color: _brand)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                ...List.generate(nomor.length, (i) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: _brand.withValues(alpha: .1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text('${i + 1}',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: _brand)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text('daily.${nomor[i]}'.tr(),
+                              style: const TextStyle(
+                                  fontSize: 14, height: 1.45, color: Colors.black87)),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.white,
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () {
+                      // Kunci tombol selama permintaan ke server berjalan,
+                      // supaya tidak tertekan dua kali.
+                      setState(() => _busy = true);
+                      _begin();
+                    },
+              icon: _busy
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.timer_outlined),
+              label: Text('daily.btn_start_now'.tr()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _brand,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -521,6 +702,54 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           backgroundColor: Colors.grey.shade300,
           valueColor: const AlwaysStoppedAnimation<Color>(_brand),
           minHeight: 3,
+        ),
+
+        // ==========================================
+        // PITA NOMOR SOAL
+        // ==========================================
+        // Dengan 30 soal, tanpa pita ini user tidak punya cara tahu nomor
+        // mana yang terlewat. Hijau = sudah dijawab, abu-abu = belum.
+        Container(
+          height: 54,
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: ListView.builder(
+            controller: _pitaCtrl,
+            scrollDirection: Axis.horizontal,
+            itemCount: _questions.length,
+            itemBuilder: (context, index) {
+              final terjawab = _answers.containsKey(index);
+              final aktif = _current == index;
+
+              return GestureDetector(
+                onTap: () => _keSoal(index),
+                child: Container(
+                  width: 38,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: aktif
+                        ? _brand
+                        : (terjawab ? const Color(0xFF1B6B4C) : Colors.grey.shade200),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: aktif ? const Color(0xFFEF6C00) : Colors.transparent,
+                      width: aktif ? 2 : 0,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        color: aktif || terjawab ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -588,7 +817,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
               if (_current > 0)
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => setState(() => _current--),
+                    onPressed: () => _keSoal(_current - 1),
                     child: Text('daily.btn_prev'.tr()),
                   ),
                 ),
@@ -598,7 +827,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     if (_current < _questions.length - 1) {
-                      setState(() => _current++);
+                      _keSoal(_current + 1);
                     } else {
                       _confirmSubmit();
                     }
@@ -638,8 +867,14 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _busy ? null : _gateResult,
-                icon: const Icon(Icons.ondemand_video),
-                label: Text('daily.btn_watch_result'.tr()),
+                icon: _menyiapkanIklan
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.ondemand_video),
+                label: Text(_menyiapkanIklan
+                    ? 'daily.ad_preparing'.tr()
+                    : 'daily.btn_watch_result'.tr()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _brand,
                   foregroundColor: Colors.white,

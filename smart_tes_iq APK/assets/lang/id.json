@@ -670,11 +670,20 @@
     "question_of": "Soal {} dari {}",
     "ad_unavailable": "Iklan tidak tersedia, kamu tetap bisa lanjut.",
     "banner_desc": "Soal baru tiap hari. Adu cepat dengan peserta lain.",
-    "prompt_ai": "Kamu adalah psikolog AI. Pengguna baru saja menyelesaikan Tantangan IQ Harian berisi {} soal campuran (verbal, deret angka, penalaran logis, spasial, klasifikasi gambar).\nHasilnya: {} jawaban benar, skor IQ harian {}, waktu pengerjaan {} detik, peringkat {} dari {} peserta hari ini.\nBerikan analisa singkat kekuatan kognitifnya, lalu satu saran konkret untuk esok hari. Bahasa Indonesia, hangat dan memotivasi, maksimal 120 kata. Gunakan **tebal** untuk kata kunci penting.",
+    "prompt_ai": "Kamu adalah psikolog AI. Pengguna baru saja menyelesaikan Tantangan IQ Harian berisi {} soal campuran (verbal, deret angka, penalaran logis, spasial, klasifikasi gambar).\nHasilnya: {} jawaban benar, skor IQ harian {}, waktu pengerjaan {} detik, peringkat {} dari {} peserta hari ini.\n\nTulis analisa sekitar 300 kata dalam Bahasa Indonesia dengan struktur berikut:\n1. Gambaran umum performa hari ini dan artinya.\n2. Kekuatan kognitif yang terlihat dari kombinasi ketepatan dan kecepatan.\n3. Area yang masih bisa ditingkatkan, disampaikan tanpa menghakimi.\n4. Dua saran konkret dan spesifik untuk tantangan besok.\n5. Satu kalimat penutup yang memotivasi.\n\nGunakan **tebal** untuk kata kunci penting. Hangat, personal, dan hindari basa-basi.",
     "ai_title": "Analisa AI",
     "ai_loading": "AI sedang menganalisa hasilmu...",
     "ai_failed": "Analisa AI gagal dimuat. Skormu tetap tersimpan.",
-    "soal": "soal"
+    "soal": "soal",
+    "ad_preparing": "Menyiapkan iklan...",
+    "rules_title": "Aturan Tantangan Hari Ini",
+    "rules_1": "30 soal campuran: verbal, deret angka, penalaran logis, spasial, dan klasifikasi gambar.",
+    "rules_2": "Waktu 15 menit, mulai dihitung saat kamu menekan tombol di bawah — bukan sekarang.",
+    "rules_3": "Semua peserta hari ini mengerjakan 30 soal yang sama persis.",
+    "rules_4": "Bisa berpindah bebas antar soal lewat nomor di bagian atas. Hijau berarti sudah dijawab.",
+    "rules_5": "Peringkat ditentukan jumlah jawaban benar dulu, baru kecepatan.",
+    "rules_6": "Waktu habis, jawabanmu terkirim otomatis. Satu kesempatan per hari.",
+    "btn_start_now": "Saya Paham, Mulai Sekarang"
   },
   "leaderboard": {
     "appbar_title": "Papan Peringkat",

@@ -670,11 +670,20 @@
     "question_of": "Question {} of {}",
     "ad_unavailable": "Ad unavailable, you can still continue.",
     "banner_desc": "New questions daily. Race against other players.",
-    "prompt_ai": "You are an AI psychologist. The user just finished a Daily IQ Challenge of {} mixed questions (verbal, number sequence, logical reasoning, spatial, image classification).\nResult: {} correct answers, daily IQ score {}, completion time {} seconds, rank {} of {} players today.\nGive a short analysis of their cognitive strengths, then one concrete suggestion for tomorrow. English, warm and motivating, max 120 words. Use **bold** for key terms.",
+    "prompt_ai": "You are an AI psychologist. The user just finished a Daily IQ Challenge of {} mixed questions (verbal, number sequence, logical reasoning, spatial, image classification).\nResult: {} correct answers, daily IQ score {}, completion time {} seconds, rank {} of {} players today.\n\nWrite an analysis of about 300 words in English with this structure:\n1. Overall read on today's performance and what it means.\n2. Cognitive strengths visible from the mix of accuracy and speed.\n3. Areas to improve, phrased without judgement.\n4. Two concrete, specific suggestions for tomorrow's challenge.\n5. One motivating closing line.\n\nUse **bold** for key terms. Warm, personal, and skip the filler.",
     "ai_title": "AI Analysis",
     "ai_loading": "AI is analysing your result...",
     "ai_failed": "AI analysis could not load. Your score is still saved.",
-    "soal": "questions"
+    "soal": "questions",
+    "ad_preparing": "Preparing ad...",
+    "rules_title": "Today's Challenge Rules",
+    "rules_1": "30 mixed questions: verbal, number sequence, logical reasoning, spatial, and image classification.",
+    "rules_2": "15 minutes, counted from the moment you tap the button below — not from now.",
+    "rules_3": "Everyone today answers the exact same 30 questions.",
+    "rules_4": "Move freely between questions using the numbers at the top. Green means answered.",
+    "rules_5": "Ranking goes by correct answers first, then speed.",
+    "rules_6": "When time runs out your answers are submitted automatically. One attempt per day.",
+    "btn_start_now": "Got It, Start Now"
   },
   "leaderboard": {
     "appbar_title": "Leaderboard",

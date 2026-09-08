@@ -29,6 +29,46 @@ class RewardedAdManager {
     );
   }
 
+  /// Apakah iklan sudah siap ditampilkan sekarang juga.
+  static bool get isReady => _rewardedAd != null;
+
+  /// Menunggu sampai iklan siap, memuat ulang kalau perlu.
+  ///
+  /// KENAPA PERLU: loadAd() hanya dipanggil sekali saat aplikasi dibuka, dan
+  /// pemuatan berikutnya baru jalan setelah sebuah iklan ditutup. Jadi ada
+  /// jendela beberapa detik di mana iklan belum siap.
+  ///
+  /// Layar lama menangani ini dengan menampilkan snackbar lalu berhenti,
+  /// sehingga user menekan lagi dan iklannya muncul. Layar yang meneruskan
+  /// begitu saja saat iklan belum siap justru TIDAK PERNAH menampilkan
+  /// iklan sama sekali. Fungsi ini menunggu sebentar dulu supaya iklannya
+  /// benar-benar dapat kesempatan tampil.
+  ///
+  /// Mengembalikan true kalau iklan siap sebelum [timeout] habis.
+  static Future<bool> ensureLoaded({
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    if (_rewardedAd != null) return true;
+
+    loadAd();
+
+    final batas = DateTime.now().add(timeout);
+    var percobaanUlang = 0;
+
+    while (_rewardedAd == null && DateTime.now().isBefore(batas)) {
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      // Kalau pemuatan gagal, _isAdLoading kembali false. Coba lagi paling
+      // banyak dua kali supaya tidak menghujani jaringan saat offline.
+      if (_rewardedAd == null && !_isAdLoading && percobaanUlang < 2) {
+        percobaanUlang++;
+        loadAd();
+      }
+    }
+
+    return _rewardedAd != null;
+  }
+
   // FUNGSI 2: MENAMPILKAN IKLAN & MEMBERIKAN HADIAH
   //
   // Dipakai sebagai GERBANG di Tantangan Harian, jadi pemanggil harus tahu
