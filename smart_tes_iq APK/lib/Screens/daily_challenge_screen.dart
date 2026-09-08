@@ -447,15 +447,21 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         foregroundColor: Colors.white,
       ),
       body: SafeArea(child: _buildBody()),
-      // Banner melayang di bawah, sama seperti layar tes lain.
+      // Banner melayang di bawah, pola yang sama dengan layar tes lain.
+      //
+      // height WAJIB eksplisit. Tanpa itu, Center di dalam
+      // bottomNavigationBar menerima batasan longgar setinggi layar dan
+      // memuai memenuhi seluruh layar, sehingga body tersisa 0 piksel --
+      // halaman jadi kosong dengan banner melayang di tengah.
       bottomNavigationBar: Container(
+        width: double.infinity,
+        height: 60,
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+          border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
         ),
-        child: const SafeArea(
-          top: false,
-          child: Center(child: CustomBannerAd()),
+        child: const Center(
+          child: CustomBannerAd(),
         ),
       ),
     );
