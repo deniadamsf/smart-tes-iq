@@ -538,53 +538,65 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // =====================================
-            // 0. BANNER TANTANGAN IQ HARIAN
+            // 0. KARTU TANTANGAN HARIAN + PAPAN PERINGKAT
             // =====================================
+            // Keduanya digabung jadi satu kartu: papan peringkat sebelumnya
+            // berupa kartu putih polos yang terjepit di antara dua banner
+            // bergradien, dan itu memutus irama visual beranda.
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
               child: Card(
                 elevation: 3,
+                // clipBehavior wajib, kalau tidak strip bawah menonjol
+                // melewati sudut membulat kartunya.
+                clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFFEF6C00), Color(0xFFF9A825)]),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    leading: const Icon(Icons.emoji_events, color: Colors.white, size: 36),
-                    title: Text('daily.appbar_title'.tr(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                    subtitle: Text('daily.banner_desc'.tr(),
-                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyChallengeScreen())).then((_) => _loadProgress());
-                    },
-                  ),
-                ),
-              ),
-            ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(colors: [Color(0xFFEF6C00), Color(0xFFF9A825)]),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: const Icon(Icons.emoji_events, color: Colors.white, size: 36),
+                        title: Text('daily.appbar_title'.tr(),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                        subtitle: Text('daily.banner_desc'.tr(),
+                            style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyChallengeScreen())).then((_) => _loadProgress());
+                        },
+                      ),
+                    ),
 
-            // =====================================
-            // 0b. BANNER PAPAN PERINGKAT
-            // =====================================
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  leading: const Icon(Icons.leaderboard, color: Color(0xFFEF6C00), size: 32),
-                  title: Text('leaderboard.appbar_title'.tr(),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  subtitle: Text('leaderboard.banner_desc'.tr(),
-                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const LeaderboardScreen()));
-                  },
+                    // Strip papan peringkat: oranye lebih tua, jadi terbaca
+                    // sebagai bagian dari kartu yang sama.
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const LeaderboardScreen()));
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        color: const Color(0xFFC85A00),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.leaderboard, color: Colors.white, size: 17),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text('leaderboard.appbar_title'.tr(),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
+                            const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 13),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
