@@ -132,7 +132,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
       _answers.clear();
       // Sisa waktu dari SERVER, bukan dihitung ulang di sini — kalau tidak,
       // menutup lalu membuka aplikasi akan mereset timer.
-      _secondsLeft = (data['sisa_detik'] ?? data['time_limit_sec'] ?? 300) as int;
+      // .toNum().toInt(), BUKAN `as int`: server pernah mengirim double
+      // (bug Carbon 3), dan `as int` pada double membuat aplikasi crash.
+      _secondsLeft =
+          ((data['sisa_detik'] ?? data['time_limit_sec'] ?? 300) as num).toInt();
       _phase = _Phase.playing;
     });
     _startTimer();

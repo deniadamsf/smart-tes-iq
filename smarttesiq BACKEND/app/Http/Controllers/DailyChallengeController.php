@@ -83,13 +83,17 @@ class DailyChallengeController extends Controller
             ]);
         }
 
-        $elapsed = Carbon::now()->diffInSeconds($attempt->started_at);
+        // Carbon 3 mengembalikan FLOAT BERTANDA dari diffIn*(), dan nilainya
+        // negatif kalau argumennya di masa lalu. abs() + cast int wajib:
+        // tanpa itu sisa_detik jadi pecahan dan bisa MELEBIHI batas waktu,
+        // lalu `as int` di sisi Dart membuat aplikasi crash.
+        $elapsed = (int) round(abs(Carbon::now()->diffInSeconds($attempt->started_at)));
 
         return response()->json([
             'status' => 'ok',
             'challenge_date' => $date,
             'time_limit_sec' => self::TIME_LIMIT_SEC,
-            'sisa_detik' => max(0, self::TIME_LIMIT_SEC - $elapsed),
+            'sisa_detik' => (int) max(0, self::TIME_LIMIT_SEC - $elapsed),
             'questions' => $questions->values()
                 ->map(fn ($q, $i) => $q->forClient($i + 1, $lang))
                 ->all(),
@@ -142,8 +146,10 @@ class DailyChallengeController extends Controller
 
         // Durasi dihitung di sini, bukan dikirim client. Dibatasi supaya
         // user yang meninggalkan aplikasi semalaman tidak tercatat 8 jam.
-        $durationMs = min(
-            Carbon::now()->diffInMilliseconds($attempt->started_at),
+        // abs() + cast int karena alasan yang sama seperti di start():
+        // nilai negatif ditolak kolom UNSIGNED dan menggagalkan seluruh submit.
+        $durationMs = (int) min(
+            round(abs(Carbon::now()->diffInMilliseconds($attempt->started_at))),
             self::TIME_LIMIT_SEC * 1000
         );
 
@@ -208,22 +214,61 @@ class DailyChallengeController extends Controller
             return $set;
         }
 
-        $pick = function (string $pool, int $count, int $window): array {
-            return QuestionBank::where('pool', $pool)
-                ->orderByRaw('last_used_on IS NULL DESC')
-                ->orderBy('last_used_on')
-                ->orderBy('use_count')
-                ->limit($window)
-                ->pluck('id')
-                ->shuffle()
-                ->take($count)
-                ->values()
-                ->all();
+        // Ambil paling banyak SATU soal per kategori, dari kategori yang
+        // berbeda-beda. Tanpa penyebaran ini, keempat soal gratis bisa jatuh
+        // ke kategori yang sama — pada uji pertama di produksi hasilnya empat
+        // soal deret angka berturut-turut, dan "tantangan IQ" yang isinya
+        // deret angka semua bukan tes IQ.
+        $pickSpread = function (string $pool, int $count): array {
+            $cats = QuestionBank::where('pool', $pool)
+                ->distinct()
+                ->pluck('category')
+                ->shuffle();
+
+            $ids = [];
+
+            foreach ($cats as $cat) {
+                if (count($ids) >= $count) {
+                    break;
+                }
+                $id = QuestionBank::where('pool', $pool)
+                    ->where('category', $cat)
+                    ->orderByRaw('last_used_on IS NULL DESC')
+                    ->orderBy('last_used_on')
+                    ->orderBy('use_count')
+                    ->limit(8)
+                    ->pluck('id')
+                    ->shuffle()
+                    ->first();
+
+                if ($id) {
+                    $ids[] = $id;
+                }
+            }
+
+            // Kalau kategori yang tersedia lebih sedikit daripada jumlah soal
+            // yang diminta, lengkapi dari sisa mana pun.
+            $kurang = $count - count($ids);
+            if ($kurang > 0) {
+                $extra = QuestionBank::where('pool', $pool)
+                    ->whereNotIn('id', $ids ?: [0])
+                    ->orderByRaw('last_used_on IS NULL DESC')
+                    ->orderBy('last_used_on')
+                    ->orderBy('use_count')
+                    ->limit($kurang * 5)
+                    ->pluck('id')
+                    ->shuffle()
+                    ->take($kurang)
+                    ->all();
+                $ids = array_merge($ids, $extra);
+            }
+
+            return $ids;
         };
 
         $ids = array_merge(
-            $pick('free', self::FREE_PER_DAY, 40),
-            $pick('pro', self::PRO_PER_DAY, 20),
+            $pickSpread('free', self::FREE_PER_DAY),
+            $pickSpread('pro', self::PRO_PER_DAY),
         );
 
         if ($ids === []) {
