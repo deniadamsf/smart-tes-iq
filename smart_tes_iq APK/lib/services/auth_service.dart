@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/database_helper.dart';
+import '../helpers/credit_store.dart';
 
 class AuthService {
   static final ValueNotifier<int> refreshTrigger = ValueNotifier(0);
@@ -79,10 +80,27 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // --- TAMBAHAN BARU: Tarik koin dari server ke HP ---
-        if (data['wartegg_credits'] != null) await prefs.setInt('wartegg_credits', int.tryParse(data['wartegg_credits'].toString()) ?? 0);
-        if (data['eq_sq_credits'] != null) await prefs.setInt('eq_sq_credits', int.tryParse(data['eq_sq_credits'].toString()) ?? 0);
-        if (data['kredit_iq_pro'] != null) await prefs.setInt('kredit_iq_pro', int.tryParse(data['kredit_iq_pro'].toString()) ?? 0);
+        // --- Tarik koin dari server ke HP ---
+        // Yang diserap adalah dua penghitung yang hanya naik (diberikan dan
+        // terpakai), bukan saldo mentah. Menimpa saldo begitu saja adalah
+        // penyebab kredit bisa dipulihkan berulang kali dulu: server
+        // menyimpan nilai tertinggi, lalu tombol sinkronisasi di layar
+        // Profil mengembalikannya penuh.
+        final diberikanSrv = data['kredit_diberikan'] as Map<String, dynamic>?;
+        final terpakaiSrv = data['kredit_terpakai'] as Map<String, dynamic>?;
+
+        int? angka(Map<String, dynamic>? m, String k) =>
+            m == null ? null : int.tryParse('${m[k]}');
+
+        for (final k in CreditStore.semua) {
+          await CreditStore.terapkanDariServer(
+            k: k,
+            diberikanServer: angka(diberikanSrv, k),
+            terpakaiServer: angka(terpakaiSrv, k),
+            saldoServer:
+                data[k] == null ? null : int.tryParse(data[k].toString()),
+          );
+        }
         // ---------------------------------------------------
 
         final db = await DatabaseHelper.instance.database;
@@ -136,14 +154,21 @@ class AuthService {
     final unsyncedTests = await DatabaseHelper.instance.getUnsyncedResults();
     final unsyncedChats = await DatabaseHelper.instance.getUnsyncedChats();
 
-    // --- TAMBAHAN BARU: Ambil Koin Lokal ---
-    int localWartegg = prefs.getInt('wartegg_credits') ?? 0;
-    int localEqSq = prefs.getInt('eq_sq_credits') ?? 0;
-    int localIqPro = prefs.getInt('kredit_iq_pro') ?? 0;
+    // --- Koin: kirim DUA penghitung yang hanya naik, bukan saldo ---
+    // 'diberikan' membuat pembelian sampai ke server; 'terpakai' membuat
+    // server tahu berapa yang sudah habis, sehingga saldo tidak bisa
+    // dipulihkan penuh lagi setelah dipakai.
+    final diberikan = await CreditStore.diberikanSemua();
+    final terpakai = await CreditStore.terpakaiSemua();
+
+    int localWartegg = diberikan[CreditStore.kWartegg] ?? 0;
+    int localEqSq = diberikan[CreditStore.kEqSq] ?? 0;
+    int localIqPro = diberikan[CreditStore.kIqPro] ?? 0;
+    final adaPemakaian = terpakai.values.any((v) => v > 0);
     // ---------------------------------------
 
     // PENTING: Ubah kondisi early return ini agar jika tes kosong tapi user punya koin, koinnya tetap ter-sync.
-    if (unsyncedTests.isEmpty && unsyncedChats.isEmpty && localWartegg == 0 && localEqSq == 0 && localIqPro == 0) return;
+    if (unsyncedTests.isEmpty && unsyncedChats.isEmpty && localWartegg == 0 && localEqSq == 0 && localIqPro == 0 && !adaPemakaian) return;
 
     try {
       final syncResponse = await http.post(
@@ -160,6 +185,8 @@ class AuthService {
           'wartegg_credits': localWartegg,
           'eq_sq_credits': localEqSq,
           'kredit_iq_pro': localIqPro,
+          // Kunci tambahan; backend lama mengabaikannya tanpa masalah.
+          'kredit_terpakai': terpakai,
         }),
       );
 
@@ -205,10 +232,10 @@ class AuthService {
     await prefs.remove('user_name');
     await prefs.remove('user_email');
 
-    // --- TAMBAHAN BARU: Bersihkan koin lokal HP saat logout ---
-    await prefs.remove('wartegg_credits');
-    await prefs.remove('eq_sq_credits');
-    await prefs.remove('kredit_iq_pro');
+    // --- Bersihkan koin lokal HP saat logout ---
+    // Termasuk kedua penghitungnya; kalau hanya saldo yang dihapus,
+    // penghitung lama akan tercampur dengan akun berikutnya.
+    await CreditStore.bersihkan();
     // ----------------------------------------------------------
 
     final db = await DatabaseHelper.instance.database;

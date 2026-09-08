@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:easy_localization/easy_localization.dart'; // BARU: Untuk terjemahan
 import '../helpers/database_helper.dart';
+import '../helpers/credit_store.dart';
 import '../services/auth_service.dart';
 import 'daily_challenge_screen.dart';
 import 'leaderboard_screen.dart';
@@ -220,13 +221,12 @@ class _HomeScreenState extends State<HomeScreen> {
       } else if (purchaseDetails.status == PurchaseStatus.error) {
       } else if (purchaseDetails.status == PurchaseStatus.purchased || purchaseDetails.status == PurchaseStatus.restored) {
 
-        final prefs = await SharedPreferences.getInstance();
         if (purchaseDetails.productID == _warteggProductId) {
-          setState(() => _warteggCredits += 5);
-          await prefs.setInt('wartegg_credits', _warteggCredits);
+          final saldo = await CreditStore.beri(CreditStore.kWartegg, 5);
+          if (mounted) setState(() => _warteggCredits = saldo);
         } else if (purchaseDetails.productID == _eqSqProductId) {
-          setState(() => _eqSqCredits += 5);
-          await prefs.setInt('eq_sq_credits', _eqSqCredits);
+          final saldo = await CreditStore.beri(CreditStore.kEqSq, 5);
+          if (mounted) setState(() => _eqSqCredits = saldo);
         }
 
         if (mounted) {
@@ -278,9 +278,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _consumeEqSqCreditAndGo(String testType) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _eqSqCredits -= 1);
-    await prefs.setInt('eq_sq_credits', _eqSqCredits);
+    final saldo = await CreditStore.pakai(CreditStore.kEqSq, 1);
+    if (!mounted) return;
+    setState(() => _eqSqCredits = saldo);
 
     if (!mounted) return;
     Navigator.pop(context);
@@ -653,9 +653,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               TextButton(onPressed: () => Navigator.pop(context), child: Text('home.btn_cancel'.tr())),
                               ElevatedButton(
                                 onPressed: () async {
-                                  final prefs = await SharedPreferences.getInstance();
-                                  setState(() => _warteggCredits -= 1);
-                                  await prefs.setInt('wartegg_credits', _warteggCredits);
+                                  final saldo = await CreditStore.pakai(CreditStore.kWartegg, 1);
+                                  setState(() => _warteggCredits = saldo);
                                   if (!context.mounted) return;
                                   Navigator.pop(context);
                                   Navigator.push(context, MaterialPageRoute(builder: (context) => const WarteggScreen())).then((_) => _loadProgress());

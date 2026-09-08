@@ -26,6 +26,9 @@ class SyncController extends Controller
      */
     private const KENAIKAN_MAKS_PER_SYNC = 30;
 
+    /** Batas kewarasan untuk penghitung pemakaian; tidak dibatasi per sync. */
+    private const PEMAKAIAN_MAKS = 100000;
+
     // MENERIMA DATA DARI HP FLUTTER
     public function syncData(Request $request)
     {
@@ -39,8 +42,19 @@ class SyncController extends Controller
             // server sekaligus cara memulihkan kredit saat ganti HP, jadi
             // perilaku itu DIPERTAHANKAN -- tapi sekarang dibatasi.
             foreach (self::KOLOM_KREDIT as $kolom) {
+                // Kolom lama = TOTAL PERNAH DIBERIKAN (naik saja).
                 if ($request->has($kolom)) {
                     $user->{$kolom} = $this->kreditAman($user, $kolom, $request->input($kolom));
+                }
+
+                // Angka pemakaian kumulatif dari client versi baru. Client
+                // 2.2.1 tidak mengirimnya, jadi nilainya tetap 0 dan
+                // perilakunya persis seperti sebelum perbaikan ini.
+                $terpakai = $request->input('kredit_terpakai.'.$kolom);
+                if ($terpakai !== null) {
+                    $user->{$kolom.'_terpakai'} = $this->kreditAman(
+                        $user, $kolom.'_terpakai', $terpakai, batasi: false
+                    );
                 }
             }
             $user->save();
@@ -138,10 +152,32 @@ class SyncController extends Controller
         return response()->json([
             'tests' => $tests,
             'chats' => $chats,
-            // --- TAMBAHAN PENGIRIMAN KOIN KE HP ---
-            'wartegg_credits' => $user->wartegg_credits,
-            'eq_sq_credits' => $user->eq_sq_credits,
-            'kredit_iq_pro' => $user->kredit_iq_pro,
+            // --- KOIN ---
+            // Yang dikirim adalah SALDO (diberikan - terpakai), bukan total
+            // pernah diberikan. Sebelum perbaikan ini yang dikirim adalah
+            // nilai tertinggi yang pernah dimiliki, sehingga user bisa
+            // memakai habis kreditnya lalu memulihkannya penuh lewat tombol
+            // sinkronisasi di layar Profil, berulang kali.
+            //
+            // Bentuk ketiga kunci ini TIDAK BERUBAH, jadi client 2.2.1 tetap
+            // membacanya seperti biasa.
+            'wartegg_credits' => $this->saldo($user, 'wartegg_credits'),
+            'eq_sq_credits' => $this->saldo($user, 'eq_sq_credits'),
+            'kredit_iq_pro' => $this->saldo($user, 'kredit_iq_pro'),
+
+            // Rincian untuk client versi baru, supaya penghitung
+            // pemakaiannya ikut pulih saat pasang ulang. Kunci tambahan,
+            // client lama mengabaikannya.
+            'kredit_diberikan' => [
+                'wartegg_credits' => (int) $user->wartegg_credits,
+                'eq_sq_credits' => (int) $user->eq_sq_credits,
+                'kredit_iq_pro' => (int) $user->kredit_iq_pro,
+            ],
+            'kredit_terpakai' => [
+                'wartegg_credits' => (int) $user->wartegg_credits_terpakai,
+                'eq_sq_credits' => (int) $user->eq_sq_credits_terpakai,
+                'kredit_iq_pro' => (int) $user->kredit_iq_pro_terpakai,
+            ],
         ], 200);
     }
     
@@ -174,7 +210,7 @@ class SyncController extends Controller
      * Kredit TIDAK PERNAH diturunkan di sini, sama seperti perilaku lama --
      * menurunkannya akan merusak pemulihan kredit saat user ganti HP.
      */
-    private function kreditAman($user, string $kolom, $dikirim): int
+    private function kreditAman($user, string $kolom, $dikirim, bool $batasi = true): int
     {
         $sekarang = (int) ($user->{$kolom} ?? 0);
 
@@ -189,7 +225,16 @@ class SyncController extends Controller
             return $sekarang;
         }
 
-        $batas = min($sekarang + self::KENAIKAN_MAKS_PER_SYNC, self::KREDIT_MAKS);
+        // Pembatasan HANYA untuk kredit yang diberikan, karena di situlah
+        // uang bisa hilang. Untuk penghitung PEMAKAIAN pembatasan justru
+        // berbahaya: pemakaian yang tidak tercatat berarti kredit yang tidak
+        // terpotong -- persis kebocoran yang sedang kita tutup. Lagi pula
+        // tidak ada insentif memalsukan pemakaian ke atas, karena itu
+        // mengurangi saldo sendiri.
+        $batas = $batasi
+            ? min($sekarang + self::KENAIKAN_MAKS_PER_SYNC, self::KREDIT_MAKS)
+            : self::PEMAKAIAN_MAKS;
+
         $baru = min($diminta, $batas);
 
         if ($diminta > $baru) {
@@ -211,5 +256,14 @@ class SyncController extends Controller
         }
 
         return $baru;
+    }
+
+    /** Saldo = total pernah diberikan dikurangi total terpakai, minimum 0. */
+    private function saldo($user, string $kolom): int
+    {
+        $diberikan = (int) ($user->{$kolom} ?? 0);
+        $terpakai = (int) ($user->{$kolom.'_terpakai'} ?? 0);
+
+        return max(0, $diberikan - $terpakai);
     }
 }

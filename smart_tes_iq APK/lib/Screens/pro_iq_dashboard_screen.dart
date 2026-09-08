@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:easy_localization/easy_localization.dart'; // BARU
 import '../helpers/database_helper.dart';
+import '../helpers/credit_store.dart';
 import '../services/auth_service.dart';
 import '../helpers/test_label_helper.dart'; // BARU
 
@@ -103,11 +104,8 @@ class _ProIqDashboardScreenState extends State<ProIqDashboardScreen> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('iq_pro_dashboard.msg_payment_cancel'.tr())));
       } else if (purchaseDetails.status == PurchaseStatus.purchased || purchaseDetails.status == PurchaseStatus.restored) {
         if (purchaseDetails.productID == _iqProProductId) {
-          final prefs = await SharedPreferences.getInstance();
-          setState(() {
-            _kreditPro += 10;
-          });
-          await prefs.setInt('kredit_iq_pro', _kreditPro);
+          final saldo = await CreditStore.beri(CreditStore.kIqPro, 10);
+          if (mounted) setState(() => _kreditPro = saldo);
         }
 
         if (mounted) {
@@ -233,8 +231,7 @@ class _ProIqDashboardScreenState extends State<ProIqDashboardScreen> {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    int sisaKredit = _kreditPro - 1;
-    await prefs.setInt('kredit_iq_pro', sisaKredit);
+    final int sisaKredit = await CreditStore.pakai(CreditStore.kIqPro, 1);
     await prefs.setBool('is_pro_session_active', true);
     await prefs.setStringList('pro_completed_tests', []);
 
