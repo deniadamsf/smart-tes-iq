@@ -191,12 +191,19 @@ class DailyChallengeController extends Controller
             'sudah_main_hari_ini' => $history->contains(
                 fn ($a) => $a->challenge_date->toDateString() === $this->today()
             ),
+            // Peringkat per hari ikut dikirim supaya aplikasi bisa
+            // menampilkan kalender berisi posisi harian. Satu query hitung
+            // per baris; dengan batas 30 baris ini masih murah.
             'history' => $history->map(fn ($a) => [
                 'challenge_date' => $a->challenge_date->toDateString(),
                 'correct' => $a->correct,
                 'total' => $a->total,
                 'iq_harian' => $a->iq_harian,
                 'duration_ms' => $a->duration_ms,
+                'rank' => $a->rank(),
+                'participants' => DailyAttempt::participantsOn(
+                    $a->challenge_date->toDateString()
+                ),
             ])->all(),
         ]);
     }

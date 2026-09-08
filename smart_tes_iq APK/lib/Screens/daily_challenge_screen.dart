@@ -56,6 +56,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
   Map<String, dynamic>? _result;
   int _streak = 0;
+  List<dynamic> _history = [];
   bool _busy = false;
   bool _menyiapkanIklan = false;
 
@@ -112,6 +113,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     final data = res['data'] as Map<String, dynamic>;
     setState(() {
       _streak = (data['streak'] ?? 0) as int;
+      _history = (data['history'] ?? []) as List<dynamic>;
       _phase = (data['sudah_main_hari_ini'] == true)
           ? _Phase.blocked
           : _Phase.intro;
@@ -562,8 +564,145 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
               onPressed: _busy ? null : () => Navigator.pop(context),
               child: Text('daily.btn_later'.tr()),
             ),
+            const SizedBox(height: 18),
+            _buildKalender(),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Kalender bulan berjalan berisi peringkat harian.
+  ///
+  /// Nama bulan sengaja dari daftar tetap, bukan DateFormat berlokal:
+  /// DateFormat dengan locale eksplisit melempar exception kalau data
+  /// locale intl belum diinisialisasi, dan itu akan menjatuhkan layar.
+  Widget _buildKalender() {
+    const bulanId = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    const bulanEn = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const hariId = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    const hariEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    final en = context.locale.languageCode == 'en';
+    final now = DateTime.now();
+    final namaBulan = (en ? bulanEn : bulanId)[now.month - 1];
+    final namaHari = en ? hariEn : hariId;
+
+    // Riwayat diindeks per tanggal supaya pencarian per sel murah.
+    final perTanggal = <String, Map<String, dynamic>>{};
+    for (final h in _history) {
+      final m = h as Map<String, dynamic>;
+      perTanggal[m['challenge_date'].toString()] = m;
+    }
+
+    final jumlahHari = DateTime(now.year, now.month + 1, 0).day;
+    // weekday: 1 = Senin ... 7 = Minggu
+    final geser = DateTime(now.year, now.month, 1).weekday - 1;
+    final totalSel = geser + jumlahHari;
+    final barisan = (totalSel / 7).ceil();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.calendar_month, size: 18, color: _brand),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('daily.calendar_title'.tr(),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14, color: _brand)),
+              ),
+              Text('$namaBulan ${now.year}',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: namaHari
+                .map((h) => Expanded(
+                      child: Center(
+                        child: Text(h,
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade600)),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 6),
+
+          ...List.generate(barisan, (baris) {
+            return Row(
+              children: List.generate(7, (kolom) {
+                final urut = baris * 7 + kolom;
+                final tanggal = urut - geser + 1;
+
+                if (tanggal < 1 || tanggal > jumlahHari) {
+                  return const Expanded(child: SizedBox(height: 40));
+                }
+
+                final kunci = '${now.year}-'
+                    '${now.month.toString().padLeft(2, '0')}-'
+                    '${tanggal.toString().padLeft(2, '0')}';
+                final data = perTanggal[kunci];
+                final hariIni = tanggal == now.day;
+                final main = data != null;
+
+                return Expanded(
+                  child: Container(
+                    height: 40,
+                    margin: const EdgeInsets.all(1.5),
+                    decoration: BoxDecoration(
+                      color: main ? _brand : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(7),
+                      border: hariIni
+                          ? Border.all(color: const Color(0xFFEF6C00), width: 1.6)
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('$tanggal',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: main ? Colors.white : Colors.black54)),
+                        if (main)
+                          Text('#${data['rank'] ?? '-'}',
+                              style: const TextStyle(
+                                  fontSize: 9, color: Colors.white70)),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            );
+          }),
+
+          const SizedBox(height: 8),
+          Text(
+            _history.isEmpty
+                ? 'daily.calendar_empty'.tr()
+                : 'daily.calendar_legend'.tr(),
+            style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+          ),
+        ],
       ),
     );
   }
@@ -1112,12 +1251,15 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         desc = 'daily.failed_desc'.tr();
     }
 
-    return Center(
+    // Digulir karena kalender bisa membuat isinya lebih tinggi dari layar
+    // pada perangkat kecil.
+    return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 20),
             Icon(icon, size: 62, color: Colors.grey.shade500),
             const SizedBox(height: 16),
             Text(title,
@@ -1145,6 +1287,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text('daily.btn_close'.tr()),
             ),
+
+            // Kalender hanya relevan kalau riwayatnya memang sudah ada;
+            // di layar 'perlu login' atau 'offline' datanya belum termuat.
+            if (_blockCode == DailyChallengeService.alreadyDone) ...[
+              const SizedBox(height: 14),
+              _buildKalender(),
+            ],
           ],
         ),
       ),

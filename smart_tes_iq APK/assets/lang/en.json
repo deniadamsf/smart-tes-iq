@@ -683,7 +683,10 @@
     "rules_4": "Move freely between questions using the numbers at the top. Green means answered.",
     "rules_5": "Ranking goes by correct answers first, then speed.",
     "rules_6": "When time runs out your answers are submitted automatically. One attempt per day.",
-    "btn_start_now": "Got It, Start Now"
+    "btn_start_now": "Got It, Start Now",
+    "calendar_title": "Your Challenge History",
+    "calendar_empty": "No history yet. Finish today’s challenge to start filling this in.",
+    "calendar_legend": "Small number = your rank that day"
   },
   "leaderboard": {
     "appbar_title": "Leaderboard",

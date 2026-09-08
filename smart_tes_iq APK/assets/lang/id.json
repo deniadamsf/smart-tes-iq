@@ -683,7 +683,10 @@
     "rules_4": "Bisa berpindah bebas antar soal lewat nomor di bagian atas. Hijau berarti sudah dijawab.",
     "rules_5": "Peringkat ditentukan jumlah jawaban benar dulu, baru kecepatan.",
     "rules_6": "Waktu habis, jawabanmu terkirim otomatis. Satu kesempatan per hari.",
-    "btn_start_now": "Saya Paham, Mulai Sekarang"
+    "btn_start_now": "Saya Paham, Mulai Sekarang",
+    "calendar_title": "Riwayat Tantanganmu",
+    "calendar_empty": "Belum ada riwayat. Selesaikan tantangan hari ini untuk mengisinya.",
+    "calendar_legend": "Angka kecil = peringkatmu hari itu"
   },
   "leaderboard": {
     "appbar_title": "Papan Peringkat",
