@@ -3,14 +3,22 @@
 Sudah ada di Play Store: 2.2.1, lalu 2.2.2 (perbaikan Math Rush).
 
 Naik ke 2.3.0 karena rilis ini menambah fitur besar, bukan perbaikan kecil.
-Nomor build 14 dipilih dengan sedikit ruang lebih di atas build 2.2.2.
+Nomor build 14 dipilih dengan sedikit ruang di atas build 2.2.2.
 **Kalau build number 2.2.2 ternyata 14 atau lebih, angka ini harus dinaikkan
 lagi** — Play Store menolak versionCode yang tidak lebih tinggi.
 
-## Nama rilis (Play Console, internal)
+## Judul rilis
+
+Indonesia:
 
 ```
 2.3.0 (14) — Tantangan Harian & Papan Peringkat
+```
+
+English:
+
+```
+2.3.0 (14) — Daily Challenge & Leaderboards
 ```
 
 ## What's new — Indonesia (id-ID)
@@ -23,7 +31,7 @@ PAPAN PERINGKAT
 Lihat posisimu di papan Harian, IQ Reguler, dan IQ PRO. Nama tampilan kamu pilih sendiri; nama akun Google tidak pernah ditampilkan.
 
 ANALISA AI
-Ulasan kekuatan kognitifmu tiap selesai tantangan harian.
+Ulasan mendalam kekuatan kognitifmu tiap selesai tantangan.
 
 BERBAGI
 Bagikan peringkatmu sebagai kartu.
@@ -42,7 +50,7 @@ LEADERBOARDS
 See where you stand on the Daily, Regular IQ, and PRO IQ boards. You pick your own display name; your Google name is never shown.
 
 AI ANALYSIS
-A read on your cognitive strengths after each daily challenge.
+An in-depth read on your cognitive strengths after each challenge.
 
 SHARING
 Share your rank as a card.
@@ -57,11 +65,15 @@ Chart layout on home and profile, plus credit calculation.
 
 - Tantangan IQ Harian: 30 soal (24 gratis + 6 PRO), batas 15 menit,
   dinilai di server sehingga skornya tidak bisa dipalsukan.
+- Layar aturan sebelum tes dimulai; hitungan waktu baru berjalan setelah
+  user menekan tombol mulai, bukan saat layar dibuka.
+- Pita nomor 1-30 supaya soal yang terlewat langsung terlihat.
 - Tiga papan peringkat: Harian, IQ Reguler, dan IQ PRO.
 - Nama tampilan bersifat opt-in; `users.name` dari akun Google tidak
   pernah dipakai di papan mana pun.
 - Kartu berbagi peringkat.
-- Analisa AI hasil harian memakai gemini-2.5-flash-lite.
+- Analisa AI hasil harian (~300 kata) memakai gemini-2.5-flash-lite.
+- Banner iklan di bawah layar tantangan.
 - Perbaikan rumus IQ Reguler: hasil tes PRO tidak lagi tercampur.
 - Perbaikan overflow grafik di beranda dan profil.
 - Perbaikan perhitungan kredit: saldo kini `diberikan - terpakai`,
