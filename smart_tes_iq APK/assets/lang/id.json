@@ -715,6 +715,13 @@
     "no_score_title": "Kamu belum punya skor di papan ini",
     "no_score_reguler": "Kerjakan tes kognitif gratis (Verbal, Deret, Logika, Spasial, Klasifikasi) lalu sinkronkan.",
     "no_score_pro": "Kerjakan Tes IQ Komprehensif (PRO) lalu sinkronkan.",
-    "participants_iq": "{} peserta"
+    "participants_iq": "{} peserta",
+    "btn_share": "Bagikan",
+    "btn_cancel": "Batal",
+    "btn_share_rank": "Bagikan peringkat",
+    "share_text": "Peringkat {} dari {} di {} — SMART TES IQ",
+    "share_failed": "Gagal membuat kartu. Coba lagi.",
+    "of_participants": "dari {} peserta",
+    "verified_short": "Terverifikasi"
   }
 }

@@ -715,6 +715,13 @@
     "no_score_title": "You have no score on this board yet",
     "no_score_reguler": "Take the free cognitive tests (Verbal, Sequence, Logic, Spatial, Classification), then sync.",
     "no_score_pro": "Take the Comprehensive IQ Test (PRO), then sync.",
-    "participants_iq": "{} players"
+    "participants_iq": "{} players",
+    "btn_share": "Share",
+    "btn_cancel": "Cancel",
+    "btn_share_rank": "Share my rank",
+    "share_text": "Rank {} of {} on {} — SMART TES IQ",
+    "share_failed": "Could not create the card. Please try again.",
+    "of_participants": "of {} players",
+    "verified_short": "Verified"
   }
 }

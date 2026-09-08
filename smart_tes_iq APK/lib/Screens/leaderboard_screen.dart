@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 
 import '../services/daily_challenge_service.dart';
 import 'daily_challenge_screen.dart';
+import 'rank_share_sheet.dart';
 
 /// Papan peringkat: Harian, IQ Reguler, IQ PRO.
 ///
@@ -269,7 +270,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           const SizedBox(height: 14),
 
           if (me != null)
-            _buildMyRank(me, peserta, isDaily)
+            _buildMyRank(me, peserta, isDaily, key, d['display_name'] as String?, terverifikasi)
           else
             _buildNoScore(key),
 
@@ -310,7 +311,37 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     );
   }
 
-  Widget _buildMyRank(Map<String, dynamic> me, int peserta, bool isDaily) {
+  void _openShare(Map<String, dynamic> me, int peserta, bool isDaily,
+      String key, String nama, bool terverifikasi) {
+    final judul = isDaily
+        ? 'leaderboard.daily_title'.tr()
+        : (key == 'reguler'
+            ? 'leaderboard.reguler_title'.tr()
+            : 'leaderboard.pro_title'.tr());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => RankShareSheet(
+        boardTitle: judul,
+        displayName: nama,
+        rank: me['rank'] as int,
+        participants: peserta,
+        iq: (isDaily ? me['iq_harian'] : me['iq']) as int,
+        detail: isDaily
+            ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s'
+            : null,
+        verified: terverifikasi,
+      ),
+    );
+  }
+
+  Widget _buildMyRank(Map<String, dynamic> me, int peserta, bool isDaily,
+      String key, String? nama, bool terverifikasi) {
     final detail = isDaily
         ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s  ·  IQ ${me['iq_harian']}'
         : 'IQ ${me['iq']}';
@@ -342,7 +373,18 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ],
             ),
           ),
-          const Icon(Icons.emoji_events, color: Colors.white24, size: 44),
+          // Berbagi hanya masuk akal kalau user punya nama tampilan —
+          // kartunya memajang nama itu. Yang belum punya sudah melihat
+          // ajakan ikut serta tepat di bawah kartu ini.
+          if (nama != null)
+            IconButton(
+              onPressed: () =>
+                  _openShare(me, peserta, isDaily, key, nama, terverifikasi),
+              icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
+              tooltip: 'leaderboard.btn_share_rank'.tr(),
+            )
+          else
+            const Icon(Icons.emoji_events, color: Colors.white24, size: 44),
         ],
       ),
     );
