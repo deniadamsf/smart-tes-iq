@@ -1,45 +1,54 @@
-# Catatan Rilis — SMART TES IQ 2.2.2 (12)
+# Catatan Rilis — SMART TES IQ 2.3.0 (14)
 
-Versi sebelumnya di Play Store: 2.2.1 (11)
+Sudah ada di Play Store: 2.2.1, lalu 2.2.2 (perbaikan Math Rush).
+
+Naik ke 2.3.0 karena rilis ini menambah fitur besar, bukan perbaikan kecil.
+Nomor build 14 dipilih dengan sedikit ruang lebih di atas build 2.2.2.
+**Kalau build number 2.2.2 ternyata 14 atau lebih, angka ini harus dinaikkan
+lagi** — Play Store menolak versionCode yang tidak lebih tinggi.
 
 ## Nama rilis (Play Console, internal)
 
 ```
-2.2.2 (12) — Tantangan Harian & Papan Peringkat
+2.3.0 (14) — Tantangan Harian & Papan Peringkat
 ```
 
 ## What's new — Indonesia (id-ID)
 
 ```
-🏆 TANTANGAN IQ HARIAN
+TANTANGAN IQ HARIAN
 30 soal baru tiap hari: verbal, angka, logika, spasial, dan gambar. Semua peserta dapat soal yang sama, jadi persaingannya adil.
 
-📊 PAPAN PERINGKAT
-Lihat posisimu di papan Harian, IQ Reguler, dan IQ PRO. Nama tampilan kamu pilih sendiri — nama akun Google tidak pernah ditampilkan.
+PAPAN PERINGKAT
+Lihat posisimu di papan Harian, IQ Reguler, dan IQ PRO. Nama tampilan kamu pilih sendiri; nama akun Google tidak pernah ditampilkan.
 
-✨ ANALISA AI
-Ulasan kekuatan kognitifmu tiap selesai tantangan.
+ANALISA AI
+Ulasan kekuatan kognitifmu tiap selesai tantangan harian.
 
-📤 Bagikan peringkatmu sebagai kartu.
+BERBAGI
+Bagikan peringkatmu sebagai kartu.
 
-🔧 Perbaikan tampilan grafik dan perhitungan kredit.
+PERBAIKAN
+Tampilan grafik di beranda dan profil, serta perhitungan kredit.
 ```
 
 ## What's new — English (en-US)
 
 ```
-🏆 DAILY IQ CHALLENGE
+DAILY IQ CHALLENGE
 30 fresh questions daily: verbal, numbers, logic, spatial, and images. Everyone gets the same set, so the race is fair.
 
-📊 LEADERBOARDS
-See where you stand on the Daily, Regular IQ, and PRO IQ boards. You pick your own display name — your Google name is never shown.
+LEADERBOARDS
+See where you stand on the Daily, Regular IQ, and PRO IQ boards. You pick your own display name; your Google name is never shown.
 
-✨ AI ANALYSIS
-A read on your cognitive strengths after each challenge.
+AI ANALYSIS
+A read on your cognitive strengths after each daily challenge.
 
-📤 Share your rank as a card.
+SHARING
+Share your rank as a card.
 
-🔧 Chart layout and credit calculation fixes.
+FIXES
+Chart layout on home and profile, plus credit calculation.
 ```
 
 ---
@@ -48,7 +57,7 @@ A read on your cognitive strengths after each challenge.
 
 - Tantangan IQ Harian: 30 soal (24 gratis + 6 PRO), batas 15 menit,
   dinilai di server sehingga skornya tidak bisa dipalsukan.
-- Tiga papan peringkat: Top 20 Harian, Top 100 IQ Reguler, Top 50 IQ PRO.
+- Tiga papan peringkat: Harian, IQ Reguler, dan IQ PRO.
 - Nama tampilan bersifat opt-in; `users.name` dari akun Google tidak
   pernah dipakai di papan mana pun.
 - Kartu berbagi peringkat.
@@ -60,7 +69,7 @@ A read on your cognitive strengths after each challenge.
 
 ## Sebelum mengunggah
 
-- Backend sudah terpasang lebih dulu di produksi, jadi client 2.2.1 yang
+- Backend sudah terpasang lebih dulu di produksi, jadi client lama yang
   masih beredar tetap berjalan normal selama masa rollout bertahap.
 - Kebijakan privasi dan formulir Data Safety perlu menyebut bahwa nama
   tampilan pilihan user ditampilkan ke pengguna lain lewat papan
