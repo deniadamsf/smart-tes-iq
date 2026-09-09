@@ -1,19 +1,20 @@
-# Catatan Rilis — SMART TES IQ 2.3.1 (15)
+# Catatan Rilis — SMART TES IQ 2.3.2 (16)
 
-Sudah ada di Play Store: 2.2.1, 2.2.2, lalu 2.3.0.
+Sudah ada di Play Store: 2.2.1, 2.2.2, lalu 2.3.0. Build 15 sudah terpakai,
+sehingga rilis ini memakai 2.3.2 (16).
 
 ## Judul rilis
 
 Indonesia:
 
 ```
-2.3.1 (15) — Tantangan Harian & Papan Peringkat
+2.3.2 (16) — Tantangan Harian & Papan Peringkat
 ```
 
 English:
 
 ```
-2.3.1 (15) — Daily Challenge & Leaderboards
+2.3.2 (16) — Daily Challenge & Leaderboards
 ```
 
 ## What's new — Indonesia (id-ID)
