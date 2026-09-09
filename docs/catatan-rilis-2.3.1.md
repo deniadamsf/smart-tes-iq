@@ -115,3 +115,4 @@ pernah dipakai — keduanya sudah tidak berlaku.
   teks privasi di dalam aplikasi sudah diperbarui mengikuti perubahan ini.
 - Berkas:
   - `app-release.aab` — unggah ini ke Play Store
+  - `app-release.apk` — untuk uji pasang langsung di perangkat
