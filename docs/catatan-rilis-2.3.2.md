@@ -17,48 +17,46 @@ English:
 2.3.2 (16) — Daily Challenge & Leaderboards
 ```
 
-## What's new — Indonesia (id-ID)
+Kolom "What's new" Play Store dibatasi **500 karakter per bahasa**, jadi
+kedua teks di bawah sengaja pendek. Jangan tambah baris tanpa menghitung
+ulang — kalau lewat, Play Console menolak simpan.
+
+## What's new — Indonesia (id-ID) — 415 karakter
 
 ```
 TANTANGAN IQ HARIAN
-30 soal baru tiap hari: verbal, angka, logika, spasial, dan gambar. Semua peserta dapat soal yang sama, jadi persaingannya adil.
+30 soal baru tiap hari. Semua peserta dapat soal yang sama.
 
 PAPAN PERINGKAT
-Lihat posisimu di papan Harian, IQ Reguler, dan IQ PRO. Begitu kamu mengerjakan tes, peringkatmu langsung ikut tampil.
+Harian, IQ Reguler, dan IQ PRO. Selesai tes, peringkatmu langsung tampil.
 
-ANGKA IQ KAMU TETAP PRIVAT
-Peserta lain hanya melihat nama dan posisi peringkatmu. Angka IQ tidak pernah ditampilkan ke siapa pun — hanya kamu yang tahu, dan hanya ikut terbawa kalau kamu sendiri yang membagikan kartu peringkat.
+ANGKA IQ TETAP PRIVAT
+Peserta lain cuma melihat nama dan peringkatmu. Angka IQ hanya kamu yang tahu.
 
-NAMA TAMPILAN BISA DIGANTI
-Awalnya papan memakai nama akun Google kamu. Ganti kapan saja dengan nama pilihanmu sendiri, atau sembunyikan diri sepenuhnya dari papan lewat satu saklar.
-
-ANALISA AI
-Ulasan mendalam kekuatanmu tiap selesai tantangan, plus kalender riwayat peringkat harian.
+NAMA TAMPILAN
+Awalnya memakai nama akun Google. Ganti kapan saja, atau sembunyikan diri dari papan.
 
 PERBAIKAN
-Tampilan grafik dan perhitungan kredit.
+Grafik dan perhitungan kredit.
 ```
 
-## What's new — English (en-US)
+## What's new — English (en-US) — 383 karakter
 
 ```
 DAILY IQ CHALLENGE
-30 fresh questions daily: verbal, numbers, logic, spatial, and images. Everyone gets the same set, so the race is fair.
+30 fresh questions daily. Everyone gets the same set.
 
 LEADERBOARDS
-See where you stand on the Daily, Regular IQ, and PRO IQ boards. Take a test and your rank shows up right away.
+Daily, Regular IQ, and PRO IQ. Finish a test and your rank shows up.
 
-YOUR IQ NUMBER STAYS PRIVATE
-Other players only see your name and your rank. Your IQ number is never shown to anyone — only you can see it, and it only travels if you share your own rank card.
+YOUR IQ STAYS PRIVATE
+Others only see your name and rank. The number is yours alone.
 
-CHANGE YOUR DISPLAY NAME
-The board starts with your Google account name. Change it to a name of your own at any time, or hide yourself from the board entirely with a single switch.
-
-AI ANALYSIS
-An in-depth read on your cognitive strengths after each challenge, plus a calendar of your daily ranks.
+DISPLAY NAME
+Starts with your Google account name. Change it anytime, or hide yourself from the board.
 
 FIXES
-Chart layout and credit calculation.
+Charts and credit calculation.
 ```
 
 ---
