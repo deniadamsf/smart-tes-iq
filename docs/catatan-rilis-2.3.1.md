@@ -23,13 +23,16 @@ TANTANGAN IQ HARIAN
 30 soal baru tiap hari: verbal, angka, logika, spasial, dan gambar. Semua peserta dapat soal yang sama, jadi persaingannya adil.
 
 PAPAN PERINGKAT
-Lihat posisimu di papan Harian, IQ Reguler, dan IQ PRO. Nama tampilan kamu pilih sendiri; nama akun Google tidak pernah ditampilkan.
+Lihat posisimu di papan Harian, IQ Reguler, dan IQ PRO. Begitu kamu mengerjakan tes, peringkatmu langsung ikut tampil.
+
+ANGKA IQ KAMU TETAP PRIVAT
+Peserta lain hanya melihat nama dan posisi peringkatmu. Angka IQ tidak pernah ditampilkan ke siapa pun — hanya kamu yang tahu, dan hanya ikut terbawa kalau kamu sendiri yang membagikan kartu peringkat.
+
+NAMA TAMPILAN BISA DIGANTI
+Awalnya papan memakai nama akun Google kamu. Ganti kapan saja dengan nama pilihanmu sendiri, atau sembunyikan diri sepenuhnya dari papan lewat satu saklar.
 
 ANALISA AI
 Ulasan mendalam kekuatanmu tiap selesai tantangan, plus kalender riwayat peringkat harian.
-
-BERBAGI
-Bagikan peringkatmu sebagai kartu.
 
 PERBAIKAN
 Tampilan grafik dan perhitungan kredit.
@@ -42,13 +45,16 @@ DAILY IQ CHALLENGE
 30 fresh questions daily: verbal, numbers, logic, spatial, and images. Everyone gets the same set, so the race is fair.
 
 LEADERBOARDS
-See where you stand on the Daily, Regular IQ, and PRO IQ boards. You pick your own display name; your Google name is never shown.
+See where you stand on the Daily, Regular IQ, and PRO IQ boards. Take a test and your rank shows up right away.
+
+YOUR IQ NUMBER STAYS PRIVATE
+Other players only see your name and your rank. Your IQ number is never shown to anyone — only you can see it, and it only travels if you share your own rank card.
+
+CHANGE YOUR DISPLAY NAME
+The board starts with your Google account name. Change it to a name of your own at any time, or hide yourself from the board entirely with a single switch.
 
 AI ANALYSIS
 An in-depth read on your cognitive strengths after each challenge, plus a calendar of your daily ranks.
-
-SHARING
-Share your rank as a card.
 
 FIXES
 Chart layout and credit calculation.
@@ -66,8 +72,6 @@ Chart layout and credit calculation.
 - Kalender riwayat berisi peringkat harian di layar pengantar dan layar
   "sudah selesai hari ini".
 - Tiga papan peringkat: Harian, IQ Reguler, dan IQ PRO.
-- Nama tampilan bersifat opt-in; `users.name` dari akun Google tidak
-  pernah dipakai di papan mana pun.
 - Kartu berbagi peringkat.
 - Analisa AI hasil harian (~300 kata) memakai gemini-2.5-flash-lite.
 - Banner iklan di bawah layar tantangan.
@@ -75,13 +79,39 @@ Chart layout and credit calculation.
 - Perbaikan overflow grafik di beranda dan profil.
 - Perbaikan perhitungan kredit: saldo kini `diberikan - terpakai`.
 
+### Perubahan papan peringkat (9 September 2026)
+
+Tiga hal berikut mengubah perilaku yang sempat direncanakan di atas.
+Catatan lama menyebut papan bersifat opt-in dan nama akun Google tidak
+pernah dipakai — keduanya sudah tidak berlaku.
+
+- **Semua peserta tampil.** Papan tidak lagi menyaring user yang belum
+  mengisi nama. Selama nama tampilan belum dipilih, papan memakai
+  `users.name` dari akun Google. Alasannya papan yang sepi membuat user
+  kehilangan minat sebelum sempat memilih nama.
+- **Angka IQ tidak dikirim ke siapa pun kecuali pemiliknya.** Baris
+  peserta lain di response API tidak membawa angka IQ sama sekali, jadi
+  tidak bisa dipanen dengan memanggil endpoint langsung.
+- **Nama tampilan bisa diganti kapan saja**, lewat tombol di AppBar
+  papan peringkat maupun dengan mengetuk nama di kartu peringkat sendiri
+  — bukan hanya sekali saat pertama ikut.
+- **Saklar "Sembunyikan saya dari papan"** (`users.sembunyi_dari_papan`).
+  User yang menyalakannya hilang dari daftar DAN dari hitungan peserta,
+  sehingga nomor peringkat orang lain tidak melompat.
+
 ## Sebelum mengunggah
 
-- Backend sudah terpasang lebih dulu di produksi, jadi client lama yang
-  masih beredar tetap berjalan normal selama masa rollout bertahap.
-- Kebijakan privasi dan formulir Data Safety perlu menyebut bahwa nama
-  tampilan pilihan user ditampilkan ke pengguna lain lewat papan
-  peringkat. Nama akun Google tidak pernah ditampilkan.
+- **Backend wajib naik lebih dulu.** Rilis ini butuh `LeaderboardController`,
+  `User`, `DailyAttempt`, dan `routes/api.php` versi baru, serta migration
+  `2026_09_09_000001_add_sembunyi_dari_papan_to_users_table` yang sudah
+  dijalankan. Tanpa itu papan peringkat error.
+- **Formulir Data Safety perlu disesuaikan.** Yang berubah dari
+  pernyataan sebelumnya: nama akun Google **memang ditampilkan** kepada
+  pengguna lain selama user belum memilih nama tampilan sendiri, dan
+  papan peringkat **tidak lagi opt-in**. Yang tetap harus dinyatakan:
+  angka IQ tidak pernah dibagikan ke pengguna lain, dan user bisa menarik
+  diri sepenuhnya dari dalam aplikasi.
+- Kebijakan privasi web (`smarttesiq.cellanoma.my.id/privacy.html`) dan
+  teks privasi di dalam aplikasi sudah diperbarui mengikuti perubahan ini.
 - Berkas:
   - `app-release.aab` — unggah ini ke Play Store
-  - `app-release.apk` — untuk uji pasang langsung di perangkat

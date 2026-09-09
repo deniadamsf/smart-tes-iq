@@ -52,7 +52,7 @@
                 <li class="mb-2"><strong>Informasi Akun:</strong> Saat Anda login menggunakan layanan Google Sign-In, kami mengumpulkan nama dan alamat email Anda untuk keperluan identifikasi akun dan pemulihan data (Sinkronisasi Cloud).</li>
                 <li class="mb-2"><strong>Data Tes & Analisa:</strong> Kami menyimpan hasil skor tes, jawaban instrumen kepribadian Anda (VAK, RIASEC), dan teks analisa yang dihasilkan oleh AI untuk membuatkan sertifikat dan menjaga rekam jejak Anda tetap mutakhir.</li>
                 <li class="mb-2"><strong>Data Obrolan AI:</strong> Kami menyimpan riwayat percakapan Anda dengan fitur "Smart AI" agar konteks percakapan tetap berkesinambungan dan tidak hilang saat Anda berpindah perangkat.</li>
-                <li class="mb-2"><strong>Nama Tampilan:</strong> Jika Anda memilih ikut papan peringkat, kami menyimpan nama tampilan yang <em>Anda tentukan sendiri</em>. Nama ini terpisah dari nama akun Google Anda, dan hanya ada bila Anda mengisinya.</li>
+                <li class="mb-2"><strong>Nama Tampilan:</strong> Bila Anda memilih nama tampilan sendiri untuk papan peringkat, kami menyimpannya terpisah dari nama akun Google Anda. Selama Anda belum mengisinya, papan peringkat memakai nama akun Google Anda.</li>
             </ul>
 
             <h5 class="fw-bold text-primary-custom mt-5"><i class="fa-solid fa-microchip"></i> 2. Penggunaan Pihak Ketiga (API)</h5>
@@ -61,12 +61,13 @@
 
             <h5 class="fw-bold text-primary-custom mt-5"><i class="fa-solid fa-ranking-star"></i> 3. Papan Peringkat dan Data yang Terlihat Pengguna Lain</h5>
             <hr>
-            <p>Aplikasi menyediakan papan peringkat (Tantangan Harian, IQ Reguler, dan IQ PRO). Fitur ini bersifat <strong>opt-in</strong>: Anda tidak muncul di papan mana pun sebelum Anda sendiri memilih sebuah nama tampilan.</p>
+            <p>Aplikasi menyediakan papan peringkat (Tantangan Harian, IQ Reguler, dan IQ PRO). Begitu Anda mengerjakan tes atau tantangan harian, posisi peringkat Anda ikut ditampilkan di papan tersebut.</p>
             <ul>
-                <li class="mb-2"><strong>Nama akun Google Anda tidak pernah ditampilkan</strong> kepada pengguna lain, dalam bentuk apa pun. Yang tampil hanya nama tampilan pilihan Anda.</li>
-                <li class="mb-2">Bila Anda ikut serta, data berikut dapat dilihat pengguna lain: nama tampilan, skor tantangan harian, skor IQ, durasi pengerjaan, dan posisi peringkat Anda.</li>
-                <li class="mb-2">Alamat email, nama asli, dan riwayat obrolan AI Anda <strong>tidak pernah</strong> ditampilkan di papan peringkat.</li>
-                <li class="mb-2">Selama Anda belum mengisi nama tampilan, peringkat Anda tetap dihitung untuk keperluan pribadi Anda sendiri, tetapi tidak dipajang kepada siapa pun.</li>
+                <li class="mb-2"><strong>Nama tampilan.</strong> Selama Anda belum memilih nama tampilan sendiri, papan peringkat mencantumkan <strong>nama akun Google Anda</strong>. Anda dapat menggantinya kapan saja melalui tombol nama tampilan di layar Papan Peringkat, dan sejak saat itu hanya nama pilihan Anda yang muncul.</li>
+                <li class="mb-2"><strong>Angka IQ Anda tidak pernah ditampilkan</strong> kepada pengguna lain. Hanya Anda sendiri yang dapat melihat angka IQ Anda di dalam aplikasi. Angka itu hanya keluar dari perangkat Anda bila Anda sendiri yang membagikan kartu peringkat.</li>
+                <li class="mb-2">Data yang dapat dilihat pengguna lain: nama tampilan, posisi peringkat, serta jumlah jawaban benar dan durasi pengerjaan pada Tantangan Harian.</li>
+                <li class="mb-2">Alamat email dan riwayat obrolan AI Anda <strong>tidak pernah</strong> ditampilkan di papan peringkat.</li>
+                <li class="mb-2"><strong>Anda dapat menarik diri kapan saja.</strong> Saklar <em>"Sembunyikan saya dari papan"</em> di layar Papan Peringkat membuat nama dan peringkat Anda hilang dari seluruh papan, dan Anda tidak lagi dihitung sebagai peserta. Skor Anda sendiri tetap tersimpan dan tetap bisa Anda lihat.</li>
             </ul>
 
             <h5 class="fw-bold text-primary-custom mt-5"><i class="fa-solid fa-shield-halved"></i> 4. Keamanan &amp; Penghapusan Data</h5>
@@ -75,7 +76,7 @@
             <ul>
                 <li>Anda dapat menghapus riwayat obrolan AI Anda secara permanen baik di perangkat lokal maupun di server awan kami melalui tombol <strong>Hapus Obrolan</strong>.</li>
                 <li>Anda dapat menghapus data lokal di perangkat Anda melalui opsi <strong>Keluar Akun (Logout)</strong>.</li>
-                <li>Anda dapat berhenti tampil di papan peringkat kapan saja dengan menghubungi kami untuk menghapus nama tampilan Anda. Setelah dihapus, nama Anda tidak lagi muncul di papan mana pun.</li>
+                <li>Anda dapat mengganti nama tampilan, atau menarik diri sepenuhnya dari papan peringkat, kapan saja melalui layar <strong>Papan Peringkat</strong> di dalam aplikasi.</li>
             </ul>
             
             <h5 class="fw-bold text-primary-custom mt-5"><i class="fa-solid fa-envelope-open-text"></i> 5. Hubungi Kami</h5>

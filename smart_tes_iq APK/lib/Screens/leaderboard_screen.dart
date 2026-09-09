@@ -7,13 +7,18 @@ import 'rank_share_sheet.dart';
 
 /// Papan peringkat: Harian, IQ Reguler, IQ PRO.
 ///
-/// Dua hal yang tidak boleh berubah tanpa dipikir ulang:
+/// Tiga hal yang tidak boleh berubah tanpa dipikir ulang:
 ///
-/// 1. Nama yang tampil SELALU `display_name` pilihan user, tidak pernah
-///    nama akun Google. User tanpa nama tampilan tetap dihitung
-///    peringkatnya tapi tidak dipajang.
+/// 1. Semua peserta yang punya skor dipajang. Selama user belum memilih
+///    nama sendiri, server memakai nama akun Google-nya dan menyalakan
+///    `nama_otomatis` — layar ini wajib memberi jalan untuk menggantinya,
+///    dan jalan itu harus selalu ada, bukan cuma saat pertama kali.
 ///
-/// 2. Hanya papan Harian yang dinilai server dan karena itu tidak bisa
+/// 2. Angka IQ orang lain TIDAK ADA di response, jadi tidak ada yang bisa
+///    ditampilkan walau kodenya salah. Yang muncul di layar ini hanya
+///    angka milik user sendiri: di kartu peringkatnya dan di kartu bagikan.
+///
+/// 3. Hanya papan Harian yang dinilai server dan karena itu tidak bisa
 ///    dipalsukan. Papan Reguler dan PRO memakai skor yang dihitung di
 ///    perangkat, dan layar ini mengatakannya terang-terangan ke user
 ///    lewat `terverifikasi` dari server.
@@ -88,6 +93,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     });
   }
 
+  /// Nama pilihan sendiri, dari papan mana pun yang sudah termuat.
+  ///
+  /// Null berarti user masih memakai nama akun Google. Dipakai untuk
+  /// mengisi dialog ganti nama, termasuk saat dibuka dari tombol AppBar
+  /// sebelum satu papan pun selesai dimuat.
+  String? get _namaPilihan {
+    for (final st in _state.values) {
+      if (st.data.isNotEmpty) return st.data['display_name'] as String?;
+    }
+    return null;
+  }
+
+  /// Apakah user sedang menarik diri dari papan.
+  bool get _sembunyi {
+    for (final st in _state.values) {
+      if (st.data.isNotEmpty) return st.data['sembunyi'] == true;
+    }
+    return false;
+  }
+
   /// Nama tampilan berlaku untuk semua papan, jadi muat ulang semuanya.
   void _reloadAll() {
     for (final k in _state.keys) {
@@ -98,10 +123,18 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   // ===================================================================
-  // Dialog nama tampilan
+  // Dialog pengaturan papan: nama tampilan + tarik diri
   // ===================================================================
-  Future<void> _askDisplayName(String? current) async {
-    final controller = TextEditingController(text: current ?? '');
+
+  /// Dua pengaturan ini dijadikan satu dialog karena keduanya menjawab
+  /// pertanyaan yang sama — "apa yang orang lain lihat tentang saya".
+  /// Memisahkannya membuat user yang tidak nyaman harus mencari dua kali.
+  Future<void> _openSettings() async {
+    final namaAwal = _namaPilihan ?? '';
+    final sembunyiAwal = _sembunyi;
+
+    final controller = TextEditingController(text: namaAwal);
+    var sembunyi = sembunyiAwal;
     String? errorText;
     var saving = false;
 
@@ -112,27 +145,43 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         builder: (dialogContext, setLocal) => AlertDialog(
           title: Text('leaderboard.join_title'.tr(),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('leaderboard.join_desc'.tr(),
-                  style: const TextStyle(fontSize: 13, height: 1.4)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                maxLength: 24,
-                autofocus: true,
-                enabled: !saving,
-                decoration: InputDecoration(
-                  labelText: 'leaderboard.name_hint'.tr(),
-                  border: const OutlineInputBorder(),
-                  errorText: errorText,
-                  helperText: 'leaderboard.name_rule'.tr(),
-                  helperMaxLines: 2,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('leaderboard.join_desc'.tr(),
+                    style: const TextStyle(fontSize: 13, height: 1.4)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  maxLength: 24,
+                  autofocus: true,
+                  enabled: !saving,
+                  decoration: InputDecoration(
+                    labelText: 'leaderboard.name_hint'.tr(),
+                    border: const OutlineInputBorder(),
+                    errorText: errorText,
+                    helperText: 'leaderboard.name_rule'.tr(),
+                    helperMaxLines: 2,
+                  ),
                 ),
-              ),
-            ],
+                const Divider(height: 26),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: sembunyi,
+                  activeThumbColor: _brand,
+                  onChanged: saving
+                      ? null
+                      : (v) => setLocal(() => sembunyi = v),
+                  title: Text('leaderboard.hide_title'.tr(),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold)),
+                  subtitle: Text('leaderboard.hide_desc'.tr(),
+                      style: const TextStyle(fontSize: 12, height: 1.35)),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -150,24 +199,44 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         errorText = null;
                       });
 
-                      final res = await DailyChallengeService.setDisplayName(
-                          controller.text.trim());
+                      final namaBaru = controller.text.trim();
 
-                      if (res['code'] == DailyChallengeService.ok) {
-                        if (dialogContext.mounted) {
-                          Navigator.pop(dialogContext, true);
+                      // Nama hanya dikirim kalau memang diisi dan berubah.
+                      // Kalau tidak, user yang cuma mau menarik diri akan
+                      // ditolak validasi "nama minimal 3 karakter".
+                      if (namaBaru.isNotEmpty && namaBaru != namaAwal) {
+                        final res =
+                            await DailyChallengeService.setDisplayName(namaBaru);
+
+                        if (res['code'] != DailyChallengeService.ok) {
+                          // Pesan penolakan dari server sudah jelas dan
+                          // berbahasa Indonesia — tampilkan apa adanya.
+                          final data = res['data'] as Map<String, dynamic>;
+                          setLocal(() {
+                            saving = false;
+                            errorText = (data['message'] as String?) ??
+                                'leaderboard.failed_desc'.tr();
+                          });
+                          return;
                         }
-                        return;
                       }
 
-                      // Pesan penolakan dari server sudah jelas dan
-                      // berbahasa Indonesia — tampilkan apa adanya.
-                      final data = res['data'] as Map<String, dynamic>;
-                      setLocal(() {
-                        saving = false;
-                        errorText = (data['message'] as String?) ??
-                            'leaderboard.failed_desc'.tr();
-                      });
+                      if (sembunyi != sembunyiAwal) {
+                        final res =
+                            await DailyChallengeService.setSembunyi(sembunyi);
+
+                        if (res['code'] != DailyChallengeService.ok) {
+                          setLocal(() {
+                            saving = false;
+                            errorText = 'leaderboard.failed_desc'.tr();
+                          });
+                          return;
+                        }
+                      }
+
+                      if (dialogContext.mounted) {
+                        Navigator.pop(dialogContext, true);
+                      }
                     },
               child: Text(saving
                   ? 'leaderboard.saving'.tr()
@@ -199,6 +268,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         backgroundColor: _brand,
         foregroundColor: Colors.white,
         actions: [
+          // Ganti nama harus bisa dijangkau kapan saja, juga sebelum user
+          // punya skor di papan mana pun.
+          IconButton(
+            onPressed: () => _openSettings(),
+            icon: const Icon(Icons.badge_outlined),
+            tooltip: 'leaderboard.btn_set_name'.tr(),
+          ),
           IconButton(
             onPressed: () => _load(_activeKey),
             icon: const Icon(Icons.refresh),
@@ -241,7 +317,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     final top = (d['top'] ?? []) as List<dynamic>;
     final me = d['me'] as Map<String, dynamic>?;
     final peserta = (d['participants'] ?? 0) as int;
-    final ikut = d['ikut_papan'] == true;
+    final namaOtomatis = d['nama_otomatis'] == true;
+    final namaTampil = (d['nama_tampil'] as String?) ?? '';
+    final sembunyi = d['sembunyi'] == true;
     final terverifikasi = d['terverifikasi'] == true;
     final isDaily = key == 'daily';
 
@@ -267,16 +345,25 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           ),
           const SizedBox(height: 10),
           _buildTrustNote(terverifikasi),
+          const SizedBox(height: 6),
+          _buildPrivacyNote(),
           const SizedBox(height: 14),
 
           if (me != null)
-            _buildMyRank(me, peserta, isDaily, key, d['display_name'] as String?, terverifikasi)
+            _buildMyRank(me, peserta, isDaily, key, namaTampil, terverifikasi)
           else
             _buildNoScore(key),
 
-          if (me != null && !ikut) ...[
+          // Kalau user menarik diri, itu keadaan yang paling perlu dia
+          // ketahui — didahulukan daripada ajakan mengganti nama.
+          if (sembunyi) ...[
             const SizedBox(height: 10),
-            _buildJoinPrompt(d['display_name'] as String?),
+            _buildHiddenNote(),
+          ] else if (namaOtomatis) ...[
+            // Ajakan mengganti nama muncul selama namanya masih diambil
+            // dari akun Google, walau user belum punya skor di papan ini.
+            const SizedBox(height: 10),
+            _buildJoinPrompt(namaTampil),
           ],
 
           const SizedBox(height: 18),
@@ -305,6 +392,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 : 'leaderboard.unverified'.tr(),
             style: TextStyle(
                 fontSize: 11.5, color: warna, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Angka IQ orang lain tidak dikirim server sama sekali. Ini dikatakan
+  /// terang-terangan supaya user tidak takut skornya terpajang.
+  Widget _buildPrivacyNote() {
+    return Row(
+      children: [
+        Icon(Icons.lock_outline, size: 15, color: Colors.grey.shade700),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'leaderboard.iq_private'.tr(),
+            style: TextStyle(
+                fontSize: 11.5,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -341,7 +448,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   Widget _buildMyRank(Map<String, dynamic> me, int peserta, bool isDaily,
-      String key, String? nama, bool terverifikasi) {
+      String key, String nama, bool terverifikasi) {
+    // Angka IQ sendiri tetap ditampilkan di sini. Yang disembunyikan
+    // adalah angka orang lain, bukan angka user terhadap dirinya sendiri.
     final detail = isDaily
         ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s  ·  IQ ${me['iq_harian']}'
         : 'IQ ${me['iq']}';
@@ -370,21 +479,44 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 Text(detail,
                     style:
                         const TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 9),
+                // Nama yang benar-benar dilihat orang lain, sekaligus
+                // pintu masuk untuk menggantinya.
+                InkWell(
+                  onTap: () => _openSettings(),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            nama,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.edit,
+                            color: Colors.white70, size: 15),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          // Berbagi hanya masuk akal kalau user punya nama tampilan —
-          // kartunya memajang nama itu. Yang belum punya sudah melihat
-          // ajakan ikut serta tepat di bawah kartu ini.
-          if (nama != null)
-            IconButton(
-              onPressed: () =>
-                  _openShare(me, peserta, isDaily, key, nama, terverifikasi),
-              icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
-              tooltip: 'leaderboard.btn_share_rank'.tr(),
-            )
-          else
-            const Icon(Icons.emoji_events, color: Colors.white24, size: 44),
+          IconButton(
+            onPressed: () =>
+                _openShare(me, peserta, isDaily, key, nama, terverifikasi),
+            icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
+            tooltip: 'leaderboard.btn_share_rank'.tr(),
+          ),
         ],
       ),
     );
@@ -440,7 +572,53 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     );
   }
 
-  Widget _buildJoinPrompt(String? current) {
+  /// Ditampilkan saat user menarik diri dari papan. Peringkat di kartu
+  /// atas tetap ada — itu posisi seandainya dia tampil, dan hanya dia
+  /// sendiri yang melihatnya.
+  Widget _buildHiddenNote() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.visibility_off_outlined,
+                  size: 17, color: Colors.grey.shade800),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text('leaderboard.hidden_title'.tr(),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('leaderboard.hidden_desc'.tr(),
+              style: const TextStyle(fontSize: 12.5, color: Colors.black87)),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _openSettings(),
+              icon: const Icon(Icons.visibility_outlined, size: 18),
+              label: Text('leaderboard.btn_show_again'.tr()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// [namaOtomatis] adalah nama akun Google yang sedang dipakai server.
+  /// Ditampilkan apa adanya supaya user tahu persis apa yang dilihat
+  /// orang lain sebelum memutuskan menggantinya.
+  Widget _buildJoinPrompt(String namaOtomatis) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -454,13 +632,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           Text('leaderboard.not_joined_title'.tr(),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 3),
-          Text('leaderboard.not_joined_desc'.tr(),
+          Text('leaderboard.not_joined_desc'.tr(args: [namaOtomatis]),
               style: const TextStyle(fontSize: 12.5, color: Colors.black87)),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _askDisplayName(current),
+              onPressed: () => _openSettings(),
               icon: const Icon(Icons.badge_outlined, size: 18),
               label: Text('leaderboard.btn_set_name'.tr()),
             ),
@@ -484,6 +662,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     final sub = isDaily
         ? '${r['correct']}/${r['total']}  ·  ${(((r['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s'
         : null;
+    // Server hanya mengirim angka IQ untuk baris milik user sendiri.
+    // Baris orang lain memang null, bukan sekadar tidak digambar.
     final iq = isDaily ? r['iq_harian'] : r['iq'];
 
     return Container(
@@ -534,17 +714,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(6)),
-            child: Text('IQ $iq',
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _brand)),
-          ),
+          if (iq != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6)),
+              child: Text('IQ $iq',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _brand)),
+            )
+          else
+            Icon(Icons.lock_outline, size: 15, color: Colors.grey.shade400),
         ],
       ),
     );

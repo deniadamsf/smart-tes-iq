@@ -135,8 +135,9 @@ class DailyChallengeService {
     }
   }
 
-  /// Nama tampilan bersifat opt-in dan terpisah dari nama akun Google.
-  /// Server yang memvalidasi panjang, karakter, dan keunikannya.
+  /// Nama tampilan terpisah dari nama akun Google. Selama belum diisi,
+  /// papan memakai nama akun Google. Server yang memvalidasi panjang,
+  /// karakter, dan keunikannya.
   static Future<Map<String, dynamic>> setDisplayName(String name) async {
     final token = await _token();
     if (token == null) return _wrap(needLogin);
@@ -147,6 +148,28 @@ class DailyChallengeService {
             Uri.parse('$baseUrl/leaderboard/display-name'),
             headers: _headers(token),
             body: jsonEncode({'display_name': name}),
+          )
+          .timeout(_timeout);
+      return _read(res);
+    } catch (_) {
+      return _wrap(offline);
+    }
+  }
+
+  /// Tarik diri dari papan peringkat, atau kembali tampil.
+  ///
+  /// Nama tampilan yang sudah dipilih tidak ikut terhapus — kalau
+  /// terhapus, nama itu bisa direbut orang lain selama user bersembunyi.
+  static Future<Map<String, dynamic>> setSembunyi(bool sembunyi) async {
+    final token = await _token();
+    if (token == null) return _wrap(needLogin);
+
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$baseUrl/leaderboard/sembunyi'),
+            headers: _headers(token),
+            body: jsonEncode({'sembunyi': sembunyi}),
           )
           .timeout(_timeout);
       return _read(res);
