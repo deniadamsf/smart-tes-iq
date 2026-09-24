@@ -101,9 +101,18 @@ npm-debug.log
 yarn-error.log
 
 # ==========================================================
-# Claude Code
+# AI Agent & Tool Configs
 # ==========================================================
-.claude/settings.local.json
+.claude/
+.claude_*
+CLAUDE.md
+GEMINI.md
+.cursorrules
+.cursor/
+.gemini/
+.copilot/
+.agents/
+.aider*
 
 # ==========================================================
 # OS / editor
