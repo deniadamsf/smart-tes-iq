@@ -18,7 +18,7 @@ void main() async {
   await EasyLocalization.ensureInitialized();
 
   await Firebase.initializeApp();
-  RewardedAdManager.loadAd();
+  await RewardedAdManager.initialize();
 
   // BARU: cek apakah user (baru ATAU lama yang baru saja update) sudah
   // pernah memilih bahasa. Kalau belum, key ini akan null/false, dan kita

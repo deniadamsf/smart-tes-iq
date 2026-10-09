@@ -59,4 +59,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(ChatHistory::class);
     }
+
+    // Jembatan ke tabel Juara Harian
+    public function dailyWins()
+    {
+        return $this->hasMany(DailyWinner::class);
+    }
 }

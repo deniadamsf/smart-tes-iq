@@ -8,6 +8,7 @@ import '../helpers/credit_store.dart';
 import '../services/auth_service.dart';
 import 'daily_challenge_screen.dart';
 import 'leaderboard_screen.dart';
+import '../helpers/rewarded_ad_manager.dart';
 import '../helpers/test_label_helper.dart'; // BARU: Untuk menerjemahkan judul tes di layar
 import 'test_screen.dart';
 import 'verbal_test_screen.dart';
@@ -82,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    RewardedAdManager.loadAd(); // Pastikan iklan video selalu siap di memori
     _loadProgress();
     _checkInitialConnectivity();
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
@@ -567,7 +569,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: const TextStyle(color: Colors.white70, fontSize: 11)),
                         trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyChallengeScreen())).then((_) => _loadProgress());
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyChallengeScreen())).then((_) {
+                            _loadProgress();
+                            RewardedAdManager.loadAd();
+                          });
                         },
                       ),
                     ),
@@ -597,6 +602,85 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+
+            // =====================================
+            // 0.B KARTU KHUSUS: LEADERBOARD DAILY IQ (TOP IQ)
+            // =====================================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
+              child: Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4), width: 1.2),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.emoji_events, color: Color(0xFFFFD54F), size: 28),
+                    ),
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'leaderboard.home_top_iq_title'.tr(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFB300),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'leaderboard.home_top_iq_badge'.tr(),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        'leaderboard.home_top_iq_desc'.tr(),
+                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      ),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 14),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LeaderboardScreen(initialKey: 'top_daily'),
+                        ),
+                      ).then((_) => _loadProgress());
+                    },
+                  ),
                 ),
               ),
             ),

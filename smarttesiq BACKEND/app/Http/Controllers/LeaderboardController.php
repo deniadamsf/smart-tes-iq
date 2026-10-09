@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyAttempt;
+use App\Models\DailyWinner;
 use App\Models\User;
 use App\Models\UserIqScore;
 use Carbon\Carbon;
@@ -45,6 +46,8 @@ class LeaderboardController extends Controller
     private const TZ = 'Asia/Jakarta';
 
     private const TOP_DAILY = 20;
+
+    private const TOP_CHAMPIONS = 50;
 
     private const TOP_REGULER = 100;
 
@@ -332,5 +335,134 @@ class LeaderboardController extends Controller
                 'iq' => (int) $milikSaya,
             ],
         ]);
+    }
+
+    // =====================================================================
+    // GET /api/leaderboard/top-daily (TOP IQ DAILY - HALL OF FAME)
+    // =====================================================================
+
+    /**
+     * Papan kehormatan: akumulasi jumlah terbanyak memenangkan tantangan harian.
+     *
+     * Berbeda dengan papan harian yang direset tiap hari, papan ini mencatat
+     * siapa yang paling sering menjadi Juara 1 Tantangan Harian sepanjang masa.
+     * Dinilai 100% oleh server sehingga 'terverifikasi' bernilai true.
+     */
+    public function topDaily(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Pastikan tanggal-tanggal lampau sudah terkunci juaranya
+        $this->settlePastWinners();
+
+        $top = DailyWinner::query()
+            ->join('users', 'users.id', '=', 'daily_winners.user_id')
+            ->where('users.sembunyi_dari_papan', false)
+            ->select(
+                'users.id as user_id',
+                'users.display_name',
+                'users.name as nama_akun',
+                DB::raw('COUNT(daily_winners.id) as total_wins'),
+                DB::raw('MAX(daily_winners.challenge_date) as last_win_date')
+            )
+            ->groupBy('users.id', 'users.display_name', 'users.name')
+            ->orderByDesc('total_wins')
+            ->orderByDesc('last_win_date')
+            ->limit(self::TOP_CHAMPIONS)
+            ->get();
+
+        $totalDays = DailyWinner::count();
+        $totalWinners = DailyWinner::query()
+            ->whereIn('user_id', User::idsTampil())
+            ->distinct('user_id')
+            ->count('user_id');
+
+        $myWins = DailyWinner::where('user_id', $user->id)->count();
+
+        $myRank = null;
+        if ($myWins > 0 && ! $user->sembunyi_dari_papan) {
+            $higherCount = DB::table('daily_winners')
+                ->join('users', 'users.id', '=', 'daily_winners.user_id')
+                ->where('users.sembunyi_dari_papan', false)
+                ->select('users.id')
+                ->groupBy('users.id')
+                ->havingRaw('COUNT(daily_winners.id) > ?', [$myWins])
+                ->get()
+                ->count();
+
+            $myRank = $higherCount + 1;
+        }
+
+        return response()->json([
+            'status' => 'ok',
+            'terverifikasi' => true,
+            'papan' => 'top_daily',
+            'total_days' => $totalDays,
+            'participants' => $totalWinners,
+            'display_name' => $user->display_name,
+            'nama_tampil' => self::namaPapan($user->display_name, $user->name),
+            'nama_otomatis' => self::pakaiNamaAkun($user->display_name),
+            'sembunyi' => (bool) $user->sembunyi_dari_papan,
+            'top' => $top->values()->map(function ($r, $i) use ($user) {
+                $saya = (int) $r->user_id === (int) $user->id;
+
+                return [
+                    'rank' => $i + 1,
+                    'display_name' => self::namaPapan($r->display_name, $r->nama_akun),
+                    'total_wins' => (int) $r->total_wins,
+                    'last_win_date' => (string) $r->last_win_date,
+                    'saya' => $saya,
+                ];
+            })->all(),
+            'me' => [
+                'rank' => $myRank,
+                'total_wins' => $myWins,
+            ],
+        ]);
+    }
+
+    /**
+     * Kunci pemenang peringkat 1 harian untuk semua tanggal yang sudah lewat.
+     *
+     * Berjalan idempoten dan otomatis. Tanggal hari ini tidak pernah dikunci
+     * sebelum pergantian hari.
+     */
+    private function settlePastWinners(): void
+    {
+        $today = $this->today();
+
+        $unsettledDates = DailyAttempt::query()
+            ->where('challenge_date', '<', $today)
+            ->whereNotNull('submitted_at')
+            ->whereNotIn('challenge_date', function ($q) {
+                $q->select('challenge_date')->from('daily_winners');
+            })
+            ->distinct()
+            ->pluck('challenge_date');
+
+        foreach ($unsettledDates as $date) {
+            $dateStr = $date instanceof Carbon ? $date->toDateString() : (string) $date;
+
+            $winner = DailyAttempt::query()
+                ->where('challenge_date', $dateStr)
+                ->whereNotNull('submitted_at')
+                ->whereIn('user_id', User::idsTampil())
+                ->orderByDesc('correct')
+                ->orderBy('duration_ms')
+                ->first();
+
+            if ($winner) {
+                DailyWinner::firstOrCreate(
+                    ['challenge_date' => $dateStr],
+                    [
+                        'user_id' => $winner->user_id,
+                        'correct' => (int) $winner->correct,
+                        'total' => (int) ($winner->total ?? 30),
+                        'duration_ms' => (int) $winner->duration_ms,
+                        'iq_harian' => $winner->iq_harian ? (int) $winner->iq_harian : null,
+                    ]
+                );
+            }
+        }
     }
 }

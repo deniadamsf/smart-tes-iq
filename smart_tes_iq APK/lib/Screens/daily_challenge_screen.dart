@@ -133,35 +133,48 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
       _menyiapkanIklan = true;
     });
 
-    // Tunggu iklan benar-benar siap. Tanpa ini, saat iklan belum termuat
-    // gerbang langsung diteruskan dan iklannya tidak pernah tampil.
+    // Tunggu iklan benar-benar siap (jika sudah di-preload sejak startup, return seketika 0 ms).
     final siap = await RewardedAdManager.ensureLoaded();
     if (!mounted) return;
     setState(() => _menyiapkanIklan = false);
 
     if (!siap) {
+      setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('daily.ad_unavailable'.tr())),
+        SnackBar(
+          content: Text('daily.ad_not_ready'.tr()),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
       );
-      _tampilkanAturan();
       return;
     }
 
     RewardedAdManager.showAd(
       context,
       _tampilkanAturan,
-      // Iklan tidak tersedia bukan salah user — tetap loloskan.
-      // Kehilangan satu impresi jauh lebih murah daripada mengunci
-      // user dari fiturnya.
       onUnavailable: () {
         if (!mounted) return;
+        setState(() => _busy = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('daily.ad_unavailable'.tr())),
+          SnackBar(
+            content: Text('daily.ad_not_ready'.tr()),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
         );
-        _tampilkanAturan();
       },
       onDismissed: () {
-        if (mounted) setState(() => _busy = false);
+        if (mounted) {
+          setState(() => _busy = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('daily.ad_must_watch'.tr()),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       },
     );
   }

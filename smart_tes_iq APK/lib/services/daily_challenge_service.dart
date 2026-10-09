@@ -135,6 +135,21 @@ class DailyChallengeService {
     }
   }
 
+  /// Papan peringkat Top IQ Daily (akumulasi memenangkan tantangan harian).
+  static Future<Map<String, dynamic>> leaderboardTopDaily() async {
+    final token = await _token();
+    if (token == null) return _wrap(needLogin);
+
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/leaderboard/top-daily'), headers: _headers(token))
+          .timeout(_timeout);
+      return _read(res);
+    } catch (_) {
+      return _wrap(offline);
+    }
+  }
+
   /// Nama tampilan terpisah dari nama akun Google. Selama belum diisi,
   /// papan memakai nama akun Google. Server yang memvalidasi panjang,
   /// karakter, dan keunikannya.

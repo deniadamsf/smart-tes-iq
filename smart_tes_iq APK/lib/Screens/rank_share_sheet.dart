@@ -15,7 +15,7 @@ class RankShareSheet extends StatefulWidget {
   final String displayName;
   final int rank;
   final int participants;
-  final int iq;
+  final int? iq;
 
   /// Baris detail opsional, mis. "4/5 benar · 32,1 detik".
   final String? detail;
@@ -29,7 +29,7 @@ class RankShareSheet extends StatefulWidget {
     required this.displayName,
     required this.rank,
     required this.participants,
-    required this.iq,
+    this.iq,
     this.detail,
     this.verified = false,
   });
@@ -212,16 +212,19 @@ class _RankShareSheetState extends State<RankShareSheet> {
             ),
             child: Column(
               children: [
-                Text('IQ ${widget.iq}',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold)),
-                if (widget.detail != null) ...[
-                  const SizedBox(height: 2),
-                  Text(widget.detail!,
+                if (widget.iq != null)
+                  Text('IQ ${widget.iq}',
                       style: const TextStyle(
-                          color: Colors.white70, fontSize: 12)),
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
+                if (widget.detail != null) ...[
+                  if (widget.iq != null) const SizedBox(height: 2),
+                  Text(widget.detail!,
+                      style: TextStyle(
+                          color: widget.iq != null ? Colors.white70 : Colors.white,
+                          fontSize: widget.iq != null ? 12 : 18,
+                          fontWeight: widget.iq != null ? FontWeight.normal : FontWeight.bold)),
                 ],
               ],
             ),

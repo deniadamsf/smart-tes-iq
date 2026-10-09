@@ -1,32 +1,76 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:easy_localization/easy_localization.dart'; // BARU: Untuk terjemahan
+import 'package:easy_localization/easy_localization.dart';
 import 'ad_helper.dart';
 
 class RewardedAdManager {
   static RewardedAd? _rewardedAd;
   static bool _isAdLoading = false;
+  static bool _isSdkInitialized = false;
+  static Timer? _retryTimer;
+  static int _retryDelaySeconds = 3;
 
-  // FUNGSI 1: MEMUAT IKLAN KE MEMORI HP (Di Balik Layar)
+  /// Inisialisasi Mobile Ads SDK dan langsung mulai memuat iklan pertama ke memori.
+  /// Dipanggil di main.dart saat aplikasi dibuka.
+  static Future<void> initialize() async {
+    if (!_isSdkInitialized) {
+      try {
+        await MobileAds.instance.initialize();
+        _isSdkInitialized = true;
+        debugPrint('[RewardedAdManager] Google Mobile Ads SDK berhasil diinisialisasi.');
+      } catch (e) {
+        debugPrint('[RewardedAdManager] Gagal inisialisasi Mobile Ads SDK: $e');
+      }
+    }
+    loadAd();
+  }
+
+  // FUNGSI 1: MEMUAT IKLAN KE MEMORI HP (Di Balik Layar / Background Preload)
   static void loadAd() {
-    if (_rewardedAd != null || _isAdLoading) return;
+    if (_rewardedAd != null) {
+      debugPrint('[RewardedAdManager] RewardedAd sudah siap di memori.');
+      return;
+    }
+    if (_isAdLoading) {
+      debugPrint('[RewardedAdManager] RewardedAd sedang dalam proses pemuatan...');
+      return;
+    }
+
+    _retryTimer?.cancel();
     _isAdLoading = true;
+    debugPrint('[RewardedAdManager] Memuat RewardedAd dari AdMob...');
 
     RewardedAd.load(
       adUnitId: AdHelper.rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
+          debugPrint('[RewardedAdManager] RewardedAd BERHASIL dimuat & siap digunakan!');
           _rewardedAd = ad;
           _isAdLoading = false;
+          _retryDelaySeconds = 3; // Reset jeda retry
+          _retryTimer?.cancel();
         },
         onAdFailedToLoad: (error) {
-          print('RewardedAd gagal dimuat: $error');
+          debugPrint('[RewardedAdManager] RewardedAd GAGAL dimuat: $error');
           _rewardedAd = null;
           _isAdLoading = false;
+          _scheduleRetry();
         },
       ),
     );
+  }
+
+  /// Menjadwalkan muat ulang otomatis di latar belakang jika gagal.
+  /// Menjamin memori HP tidak kosong jika koneksi sempat drop saat awal aplikasi dibuka.
+  static void _scheduleRetry() {
+    _retryTimer?.cancel();
+    debugPrint('[RewardedAdManager] Menjadwalkan muat ulang otomatis dalam $_retryDelaySeconds detik...');
+    _retryTimer = Timer(Duration(seconds: _retryDelaySeconds), () {
+      _retryDelaySeconds = (_retryDelaySeconds * 2).clamp(3, 45);
+      loadAd();
+    });
   }
 
   /// Apakah iklan sudah siap ditampilkan sekarang juga.
@@ -34,34 +78,23 @@ class RewardedAdManager {
 
   /// Menunggu sampai iklan siap, memuat ulang kalau perlu.
   ///
-  /// KENAPA PERLU: loadAd() hanya dipanggil sekali saat aplikasi dibuka, dan
-  /// pemuatan berikutnya baru jalan setelah sebuah iklan ditutup. Jadi ada
-  /// jendela beberapa detik di mana iklan belum siap.
-  ///
-  /// Layar lama menangani ini dengan menampilkan snackbar lalu berhenti,
-  /// sehingga user menekan lagi dan iklannya muncul. Layar yang meneruskan
-  /// begitu saja saat iklan belum siap justru TIDAK PERNAH menampilkan
-  /// iklan sama sekali. Fungsi ini menunggu sebentar dulu supaya iklannya
-  /// benar-benar dapat kesempatan tampil.
-  ///
-  /// Mengembalikan true kalau iklan siap sebelum [timeout] habis.
+  /// Bila iklan sudah standby di memori (kondisi umum berkat startup preload),
+  /// fungsi ini selesai SEKETIKA (0 ms) tanpa membuat user menunggu.
+  /// Bila baru buka aplikasi dan proses background belum selesai, fungsi ini
+  /// menunggu hingga iklan masuk memori atau batas [timeout] tercapai.
   static Future<bool> ensureLoaded({
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 8),
   }) async {
     if (_rewardedAd != null) return true;
 
     loadAd();
 
     final batas = DateTime.now().add(timeout);
-    var percobaanUlang = 0;
-
     while (_rewardedAd == null && DateTime.now().isBefore(batas)) {
-      await Future.delayed(const Duration(milliseconds: 250));
+      await Future.delayed(const Duration(milliseconds: 150));
 
-      // Kalau pemuatan gagal, _isAdLoading kembali false. Coba lagi paling
-      // banyak dua kali supaya tidak menghujani jaringan saat offline.
-      if (_rewardedAd == null && !_isAdLoading && percobaanUlang < 2) {
-        percobaanUlang++;
+      // Kalau pemuatan sebelumnya gagal cepat, langsung picu lagi tanpa tunggu timer retry
+      if (_rewardedAd == null && !_isAdLoading) {
         loadAd();
       }
     }
@@ -71,19 +104,8 @@ class RewardedAdManager {
 
   // FUNGSI 2: MENAMPILKAN IKLAN & MEMBERIKAN HADIAH
   //
-  // Dipakai sebagai GERBANG di Tantangan Harian, jadi pemanggil harus tahu
-  // ketiga kemungkinan akhirnya — bukan cuma yang berhasil:
-  //
-  //   onRewardEarned : iklan ditonton sampai selesai.
-  //   onUnavailable  : iklan tidak tersedia (offline / belum termuat / gagal
-  //                    tampil). Pemanggil WAJIB tetap meloloskan user.
-  //                    Kehilangan satu impresi jauh lebih murah daripada
-  //                    mengunci user dari fitur dan dapat ulasan bintang satu.
-  //   onDismissed    : iklan ditutup sebelum selesai. Pemanggil perlu ini
-  //                    untuk mengaktifkan lagi tombolnya.
-  //
-  // onUnavailable dan onDismissed opsional supaya pemanggil lama
-  // (showAd(context, cb)) tetap jalan tanpa diubah.
+  // Segera setelah sebuah iklan ditutup / gagal tampil, otomatis langsung memicu
+  // pemuatan iklan cadangan berikutnya di latar belakang agar selalu siap.
   static void showAd(
     BuildContext context,
     VoidCallback onRewardEarned, {
@@ -96,7 +118,6 @@ class RewardedAdManager {
       if (onUnavailable != null) {
         onUnavailable();
       } else {
-        // Perilaku lama dipertahankan untuk pemanggil yang belum diperbarui.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('ads.not_ready'.tr()),
@@ -108,30 +129,37 @@ class RewardedAdManager {
     }
 
     bool earned = false;
+    final adToShow = _rewardedAd!;
+    _rewardedAd = null; // Konsumsi instance iklan agar tidak bisa dipanggil ganda
 
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+    adToShow.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
+        debugPrint('[RewardedAdManager] RewardedAd ditutup oleh pengguna.');
         ad.dispose();
-        _rewardedAd = null;
+        // LANGSUNG PRELOAD IKLAN CADANGAN BERIKUTNYA DI BACKGROUND!
         loadAd();
+
         // Hadiah sudah diberikan lewat onUserEarnedReward. Kalau belum,
         // berarti user menutup iklan lebih awal.
-        if (!earned) onDismissed?.call();
+        if (!earned) {
+          onDismissed?.call();
+        }
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('[RewardedAdManager] RewardedAd gagal tampil: $error');
         ad.dispose();
-        _rewardedAd = null;
-        loadAd();
-        // Gagal tampil bukan salah user — perlakukan seperti tidak tersedia.
+        loadAd(); // Muat pengganti
         onUnavailable?.call();
       },
     );
 
-    _rewardedAd!.show(
+    adToShow.show(
       onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+        debugPrint('[RewardedAdManager] Hadiah rewarded diterima.');
         earned = true;
         onRewardEarned();
       },
     );
   }
 }
+

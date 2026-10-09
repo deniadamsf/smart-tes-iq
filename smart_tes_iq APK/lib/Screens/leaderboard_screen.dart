@@ -23,7 +23,9 @@ import 'rank_share_sheet.dart';
 ///    perangkat, dan layar ini mengatakannya terang-terangan ke user
 ///    lewat `terverifikasi` dari server.
 class LeaderboardScreen extends StatefulWidget {
-  const LeaderboardScreen({super.key});
+  final String initialKey;
+
+  const LeaderboardScreen({super.key, this.initialKey = 'daily'});
 
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
@@ -40,8 +42,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   static const Color _brand = Color(0xFF0D47A1);
   static const Color _gold = Color(0xFFEF6C00);
 
+  static const List<String> _keys = ['top_daily', 'daily', 'reguler', 'pro'];
+
   late final TabController _tabs;
   final Map<String, _BoardState> _state = {
+    'top_daily': _BoardState(),
     'daily': _BoardState(),
     'reguler': _BoardState(),
     'pro': _BoardState(),
@@ -50,9 +55,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    final initialIndex = _keys.contains(widget.initialKey)
+        ? _keys.indexOf(widget.initialKey)
+        : 1;
+    _tabs = TabController(length: _keys.length, vsync: this, initialIndex: initialIndex);
     _tabs.addListener(_onTab);
-    _load('daily');
+    _load(_keys[initialIndex]);
   }
 
   @override
@@ -62,7 +70,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     super.dispose();
   }
 
-  String get _activeKey => ['daily', 'reguler', 'pro'][_tabs.index];
+  String get _activeKey => _keys[_tabs.index];
 
   /// Muat tab hanya saat pertama dibuka, bukan setiap kali digeser.
   void _onTab() {
@@ -77,9 +85,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       _state[key]!.error = '';
     });
 
-    final res = key == 'daily'
-        ? await DailyChallengeService.leaderboardDaily()
-        : await DailyChallengeService.leaderboardIq(key);
+    final res = key == 'top_daily'
+        ? await DailyChallengeService.leaderboardTopDaily()
+        : (key == 'daily'
+            ? await DailyChallengeService.leaderboardDaily()
+            : await DailyChallengeService.leaderboardIq(key));
 
     if (!mounted) return;
     setState(() {
@@ -288,7 +298,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.emoji_events, size: 16, color: Color(0xFFFFD54F)),
+                  const SizedBox(width: 5),
+                  Text('leaderboard.tab_top_daily'.tr()),
+                ],
+              ),
+            ),
             Tab(text: 'leaderboard.tab_daily'.tr()),
             Tab(text: 'leaderboard.tab_reguler'.tr()),
             Tab(text: 'leaderboard.tab_pro'.tr()),
@@ -299,6 +321,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         child: TabBarView(
           controller: _tabs,
           children: [
+            _buildTab('top_daily'),
             _buildTab('daily'),
             _buildTab('reguler'),
             _buildTab('pro'),
@@ -317,10 +340,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     final top = (d['top'] ?? []) as List<dynamic>;
     final me = d['me'] as Map<String, dynamic>?;
     final peserta = (d['participants'] ?? 0) as int;
+    final totalDays = (d['total_days'] ?? 0) as int;
     final namaOtomatis = d['nama_otomatis'] == true;
     final namaTampil = (d['nama_tampil'] as String?) ?? '';
     final sembunyi = d['sembunyi'] == true;
     final terverifikasi = d['terverifikasi'] == true;
+    final isTopDaily = key == 'top_daily';
     final isDaily = key == 'daily';
 
     return RefreshIndicator(
@@ -329,28 +354,62 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         children: [
           Text(
-            isDaily
-                ? 'leaderboard.daily_title'.tr()
-                : (key == 'reguler'
-                    ? 'leaderboard.reguler_title'.tr()
-                    : 'leaderboard.pro_title'.tr()),
+            isTopDaily
+                ? 'leaderboard.top_daily_title'.tr()
+                : (isDaily
+                    ? 'leaderboard.daily_title'.tr()
+                    : (key == 'reguler'
+                        ? 'leaderboard.reguler_title'.tr()
+                        : 'leaderboard.pro_title'.tr())),
             style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 3),
           Text(
-            isDaily
-                ? 'leaderboard.participants'.tr(args: ['$peserta'])
-                : '${'leaderboard.participants_iq'.tr(args: ['$peserta'])} · ${key == 'reguler' ? 'leaderboard.reguler_desc'.tr() : 'leaderboard.pro_desc'.tr()}',
+            isTopDaily
+                ? 'leaderboard.participants_top_daily'.tr(args: ['$peserta', '$totalDays'])
+                : (isDaily
+                    ? 'leaderboard.participants'.tr(args: ['$peserta'])
+                    : '${'leaderboard.participants_iq'.tr(args: ['$peserta'])} · ${key == 'reguler' ? 'leaderboard.reguler_desc'.tr() : 'leaderboard.pro_desc'.tr()}'),
             style: const TextStyle(fontSize: 12.5, color: Colors.black54),
           ),
+          if (isTopDaily) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFFE082)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline, color: Color(0xFFEF6C00), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'leaderboard.top_daily_notice'.tr(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF5D4037),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           _buildTrustNote(terverifikasi),
-          const SizedBox(height: 6),
-          _buildPrivacyNote(),
+          if (!isTopDaily) ...[
+            const SizedBox(height: 6),
+            _buildPrivacyNote(),
+          ],
           const SizedBox(height: 14),
 
-          if (me != null)
-            _buildMyRank(me, peserta, isDaily, key, namaTampil, terverifikasi)
+          if (me != null && (!isTopDaily || (me['total_wins'] != null && (me['total_wins'] as int) > 0)))
+            _buildMyRank(me, peserta, isDaily, isTopDaily, key, namaTampil, terverifikasi)
           else
             _buildNoScore(key),
 
@@ -370,7 +429,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           if (top.isEmpty)
             _buildEmpty()
           else
-            ...top.map((e) => _buildRow(e as Map<String, dynamic>, isDaily)),
+            ...top.map((e) => _buildRow(e as Map<String, dynamic>, key)),
         ],
       ),
     );
@@ -419,12 +478,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   void _openShare(Map<String, dynamic> me, int peserta, bool isDaily,
-      String key, String nama, bool terverifikasi) {
-    final judul = isDaily
-        ? 'leaderboard.daily_title'.tr()
-        : (key == 'reguler'
-            ? 'leaderboard.reguler_title'.tr()
-            : 'leaderboard.pro_title'.tr());
+      bool isTopDaily, String key, String nama, bool terverifikasi) {
+    final judul = isTopDaily
+        ? 'leaderboard.top_daily_title'.tr()
+        : (isDaily
+            ? 'leaderboard.daily_title'.tr()
+            : (key == 'reguler'
+                ? 'leaderboard.reguler_title'.tr()
+                : 'leaderboard.pro_title'.tr()));
+
+    final detail = isTopDaily
+        ? 'leaderboard.my_wins_count'.tr(args: ['${me['total_wins']}'])
+        : (isDaily
+            ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s'
+            : null);
 
     showModalBottomSheet(
       context: context,
@@ -436,24 +503,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       builder: (_) => RankShareSheet(
         boardTitle: judul,
         displayName: nama,
-        rank: me['rank'] as int,
+        rank: (me['rank'] ?? 0) as int,
         participants: peserta,
-        iq: (isDaily ? me['iq_harian'] : me['iq']) as int,
-        detail: isDaily
-            ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s'
-            : null,
+        iq: isTopDaily ? null : (isDaily ? me['iq_harian'] : me['iq']) as int?,
+        detail: detail,
         verified: terverifikasi,
       ),
     );
   }
 
   Widget _buildMyRank(Map<String, dynamic> me, int peserta, bool isDaily,
-      String key, String nama, bool terverifikasi) {
+      bool isTopDaily, String key, String nama, bool terverifikasi) {
     // Angka IQ sendiri tetap ditampilkan di sini. Yang disembunyikan
     // adalah angka orang lain, bukan angka user terhadap dirinya sendiri.
-    final detail = isDaily
-        ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s  ·  IQ ${me['iq_harian']}'
-        : 'IQ ${me['iq']}';
+    final detail = isTopDaily
+        ? 'leaderboard.my_wins_count'.tr(args: ['${me['total_wins']}'])
+        : (isDaily
+            ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s  ·  IQ ${me['iq_harian']}'
+            : 'IQ ${me['iq']}');
+
+    final rankText = me['rank'] != null
+        ? 'leaderboard.rank_of'.tr(args: ['${me['rank']}', '$peserta'])
+        : '-';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -469,16 +540,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 4),
                 Text(
-                  'leaderboard.rank_of'.tr(args: ['${me['rank']}', '$peserta']),
+                  rankText,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 19,
                       fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 3),
-                Text(detail,
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 12)),
+                Row(
+                  children: [
+                    if (isTopDaily) ...[
+                      const Icon(Icons.emoji_events, color: Color(0xFFFFD54F), size: 14),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(
+                      child: Text(
+                        detail,
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 9),
                 // Nama yang benar-benar dilihat orang lain, sekaligus
                 // pintu masuk untuk menggantinya.
@@ -511,23 +594,32 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ],
             ),
           ),
-          IconButton(
-            onPressed: () =>
-                _openShare(me, peserta, isDaily, key, nama, terverifikasi),
-            icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
-            tooltip: 'leaderboard.btn_share_rank'.tr(),
-          ),
+          if (me['rank'] != null)
+            IconButton(
+              onPressed: () =>
+                  _openShare(me, peserta, isDaily, isTopDaily, key, nama, terverifikasi),
+              icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
+              tooltip: 'leaderboard.btn_share_rank'.tr(),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildNoScore(String key) {
-    final desc = key == 'daily'
-        ? 'leaderboard.not_played_desc'.tr()
-        : (key == 'reguler'
-            ? 'leaderboard.no_score_reguler'.tr()
-            : 'leaderboard.no_score_pro'.tr());
+    final title = key == 'top_daily'
+        ? 'leaderboard.top_daily_no_wins_title'.tr()
+        : (key == 'daily'
+            ? 'leaderboard.not_played_title'.tr()
+            : 'leaderboard.no_score_title'.tr());
+
+    final desc = key == 'top_daily'
+        ? 'leaderboard.top_daily_no_wins_desc'.tr()
+        : (key == 'daily'
+            ? 'leaderboard.not_played_desc'.tr()
+            : (key == 'reguler'
+                ? 'leaderboard.no_score_reguler'.tr()
+                : 'leaderboard.no_score_pro'.tr()));
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -539,20 +631,29 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            key == 'daily'
-                ? 'leaderboard.not_played_title'.tr()
-                : 'leaderboard.no_score_title'.tr(),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          Row(
+            children: [
+              if (key == 'top_daily') ...[
+                const Icon(Icons.emoji_events_outlined, color: _gold, size: 22),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(desc,
               style: const TextStyle(fontSize: 13, color: Colors.black54)),
-          if (key == 'daily') ...[
+          if (key == 'daily' || key == 'top_daily') ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.play_arrow, size: 18),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: _gold, foregroundColor: Colors.white),
                 onPressed: () async {
@@ -563,7 +664,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   );
                   if (mounted) _reloadAll();
                 },
-                child: Text('leaderboard.btn_play'.tr()),
+                label: Text('leaderboard.btn_play_daily'.tr()),
               ),
             ),
           ],
@@ -648,7 +749,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     );
   }
 
-  Widget _buildRow(Map<String, dynamic> r, bool isDaily) {
+  Widget _buildRow(Map<String, dynamic> r, String key) {
+    final isTopDaily = key == 'top_daily';
+    final isDaily = key == 'daily';
     final rank = r['rank'] as int;
     final isMe = r['saya'] == true;
 
@@ -661,10 +764,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
     final sub = isDaily
         ? '${r['correct']}/${r['total']}  ·  ${(((r['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s'
-        : null;
-    // Server hanya mengirim angka IQ untuk baris milik user sendiri.
-    // Baris orang lain memang null, bukan sekadar tidak digambar.
+        : (isTopDaily && r['last_win_date'] != null
+            ? 'leaderboard.last_win'.tr(args: ['${r['last_win_date']}'])
+            : null);
+
     final iq = isDaily ? r['iq_harian'] : r['iq'];
+    final totalWins = isTopDaily ? (r['total_wins'] as int? ?? 0) : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -681,12 +786,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         children: [
           SizedBox(
             width: 36,
-            child: Text('$rank',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: rank <= 3 ? 19 : 15,
-                    color: medal(rank))),
+            child: rank == 1 && isTopDaily
+                ? const Icon(Icons.workspace_premium, color: Color(0xFFD4A017), size: 24)
+                : Text('$rank',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: rank <= 3 ? 19 : 15,
+                        color: medal(rank))),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -714,7 +821,31 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ],
             ),
           ),
-          if (iq != null)
+          if (isTopDaily)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: rank == 1 ? const Color(0xFFFFF8E1) : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: rank == 1 ? const Color(0xFFFFD54F) : Colors.orange.shade200),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.emoji_events, size: 15, color: rank == 1 ? const Color(0xFFD4A017) : _gold),
+                  const SizedBox(width: 4),
+                  Text(
+                    'leaderboard.win_badge'.tr(args: ['$totalWins']),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: rank == 1 ? const Color(0xFFB78103) : const Color(0xFFBF360C),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (iq != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
