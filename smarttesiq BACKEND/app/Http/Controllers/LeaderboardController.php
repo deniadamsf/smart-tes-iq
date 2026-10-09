@@ -350,43 +350,54 @@ class LeaderboardController extends Controller
      */
     public function topDaily(Request $request): JsonResponse
     {
-        $user = $request->user();
+        // Pastikan tanggal-tanggal lampau sudah dihitung poin peringkatnya (1-20)
+        $this->settlePastPoints();
 
-        // Pastikan tanggal-tanggal lampau sudah terkunci juaranya
-        $this->settlePastWinners();
+        $user = $request->user('sanctum') ?? $request->user();
 
-        $top = DailyWinner::query()
-            ->join('users', 'users.id', '=', 'daily_winners.user_id')
+        $top = DB::table('daily_points')
+            ->join('users', 'users.id', '=', 'daily_points.user_id')
             ->where('users.sembunyi_dari_papan', false)
             ->select(
                 'users.id as user_id',
                 'users.display_name',
                 'users.name as nama_akun',
-                DB::raw('COUNT(daily_winners.id) as total_wins'),
-                DB::raw('MAX(daily_winners.challenge_date) as last_win_date')
+                DB::raw('SUM(daily_points.points) as total_points'),
+                DB::raw('COUNT(CASE WHEN daily_points.rank = 1 THEN 1 END) as total_wins'),
+                DB::raw('MAX(daily_points.challenge_date) as last_win_date')
             )
             ->groupBy('users.id', 'users.display_name', 'users.name')
+            ->orderByDesc('total_points')
             ->orderByDesc('total_wins')
             ->orderByDesc('last_win_date')
             ->limit(self::TOP_CHAMPIONS)
             ->get();
 
-        $totalDays = DailyWinner::count();
-        $totalWinners = DailyWinner::query()
+        $totalDays = DB::table('daily_points')->distinct('challenge_date')->count('challenge_date');
+        $totalParticipants = DB::table('daily_points')
             ->whereIn('user_id', User::idsTampil())
             ->distinct('user_id')
             ->count('user_id');
 
-        $myWins = DailyWinner::where('user_id', $user->id)->count();
+        $myStats = $user ? DB::table('daily_points')
+            ->where('user_id', $user->id)
+            ->select(
+                DB::raw('SUM(points) as total_points'),
+                DB::raw('COUNT(CASE WHEN rank = 1 THEN 1 END) as total_wins')
+            )
+            ->first() : null;
+
+        $myPoints = (int) ($myStats?->total_points ?? 0);
+        $myWins = (int) ($myStats?->total_wins ?? 0);
 
         $myRank = null;
-        if ($myWins > 0 && ! $user->sembunyi_dari_papan) {
-            $higherCount = DB::table('daily_winners')
-                ->join('users', 'users.id', '=', 'daily_winners.user_id')
+        if ($user && $myPoints > 0 && ! $user->sembunyi_dari_papan) {
+            $higherCount = DB::table('daily_points')
+                ->join('users', 'users.id', '=', 'daily_points.user_id')
                 ->where('users.sembunyi_dari_papan', false)
                 ->select('users.id')
                 ->groupBy('users.id')
-                ->havingRaw('COUNT(daily_winners.id) > ?', [$myWins])
+                ->havingRaw('SUM(daily_points.points) > ?', [$myPoints])
                 ->get()
                 ->count();
 
@@ -398,17 +409,18 @@ class LeaderboardController extends Controller
             'terverifikasi' => true,
             'papan' => 'top_daily',
             'total_days' => $totalDays,
-            'participants' => $totalWinners,
-            'display_name' => $user->display_name,
-            'nama_tampil' => self::namaPapan($user->display_name, $user->name),
-            'nama_otomatis' => self::pakaiNamaAkun($user->display_name),
-            'sembunyi' => (bool) $user->sembunyi_dari_papan,
+            'participants' => $totalParticipants,
+            'display_name' => $user?->display_name,
+            'nama_tampil' => $user ? self::namaPapan($user->display_name, $user->name) : null,
+            'nama_otomatis' => $user ? self::pakaiNamaAkun($user->display_name) : false,
+            'sembunyi' => (bool) ($user?->sembunyi_dari_papan ?? false),
             'top' => $top->values()->map(function ($r, $i) use ($user) {
-                $saya = (int) $r->user_id === (int) $user->id;
+                $saya = $user ? ((int) $r->user_id === (int) $user->id) : false;
 
                 return [
                     'rank' => $i + 1,
                     'display_name' => self::namaPapan($r->display_name, $r->nama_akun),
+                    'total_points' => (int) $r->total_points,
                     'total_wins' => (int) $r->total_wins,
                     'last_win_date' => (string) $r->last_win_date,
                     'saya' => $saya,
@@ -416,18 +428,19 @@ class LeaderboardController extends Controller
             })->all(),
             'me' => [
                 'rank' => $myRank,
+                'total_points' => $myPoints,
                 'total_wins' => $myWins,
             ],
         ]);
     }
 
     /**
-     * Kunci pemenang peringkat 1 harian untuk semua tanggal yang sudah lewat.
+     * Hitung dan kunci poin peringkat Tantangan Harian (1-20) untuk semua tanggal lampau.
      *
-     * Berjalan idempoten dan otomatis. Tanggal hari ini tidak pernah dikunci
-     * sebelum pergantian hari.
+     * Juara 1 = 7 poin, Juara 2 = 5 poin, Juara 3 = 3 poin,
+     * Juara 4 = 2 poin, Peringkat 5 s/d 20 = 1 poin.
      */
-    private function settlePastWinners(): void
+    private function settlePastPoints(): void
     {
         $today = $this->today();
 
@@ -435,7 +448,7 @@ class LeaderboardController extends Controller
             ->where('challenge_date', '<', $today)
             ->whereNotNull('submitted_at')
             ->whereNotIn('challenge_date', function ($q) {
-                $q->select('challenge_date')->from('daily_winners');
+                $q->select('challenge_date')->from('daily_points');
             })
             ->distinct()
             ->pluck('challenge_date');
@@ -443,25 +456,45 @@ class LeaderboardController extends Controller
         foreach ($unsettledDates as $date) {
             $dateStr = $date instanceof Carbon ? $date->toDateString() : (string) $date;
 
-            $winner = DailyAttempt::query()
+            $attempts = DailyAttempt::query()
                 ->where('challenge_date', $dateStr)
                 ->whereNotNull('submitted_at')
                 ->whereIn('user_id', User::idsTampil())
                 ->orderByDesc('correct')
                 ->orderBy('duration_ms')
-                ->first();
+                ->orderBy('submitted_at')
+                ->limit(20)
+                ->get();
 
-            if ($winner) {
-                DailyWinner::firstOrCreate(
-                    ['challenge_date' => $dateStr],
-                    [
-                        'user_id' => $winner->user_id,
-                        'correct' => (int) $winner->correct,
-                        'total' => (int) ($winner->total ?? 30),
-                        'duration_ms' => (int) $winner->duration_ms,
-                        'iq_harian' => $winner->iq_harian ? (int) $winner->iq_harian : null,
-                    ]
-                );
+            $rows = [];
+            $now = now();
+            foreach ($attempts as $idx => $att) {
+                $rank = $idx + 1;
+                $points = match ($rank) {
+                    1 => 7,
+                    2 => 5,
+                    3 => 3,
+                    4 => 2,
+                    default => ($rank >= 5 && $rank <= 20) ? 1 : 0,
+                };
+
+                if ($points > 0) {
+                    $rows[] = [
+                        'challenge_date' => $dateStr,
+                        'user_id' => $att->user_id,
+                        'rank' => $rank,
+                        'points' => $points,
+                        'correct' => $att->correct,
+                        'total' => $att->total ?? 30,
+                        'duration_ms' => $att->duration_ms,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+
+            if (! empty($rows)) {
+                DB::table('daily_points')->insertOrIgnore($rows);
             }
         }
     }

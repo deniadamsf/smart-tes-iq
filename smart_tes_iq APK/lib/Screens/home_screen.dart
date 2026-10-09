@@ -6,6 +6,7 @@ import 'package:easy_localization/easy_localization.dart'; // BARU: Untuk terjem
 import '../helpers/database_helper.dart';
 import '../helpers/credit_store.dart';
 import '../services/auth_service.dart';
+import '../services/daily_challenge_service.dart';
 import 'daily_challenge_screen.dart';
 import 'leaderboard_screen.dart';
 import '../helpers/rewarded_ad_manager.dart';
@@ -56,6 +57,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isOnline = true;
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
 
+  // Variabel Top 3 Pemenang Harian
+  List<Map<String, dynamic>> _topWinners = [];
+  bool _isLoadingTopWinners = true;
+
   // === VARIABEL IAP ===
   final InAppPurchase _iap = InAppPurchase.instance;
   late StreamSubscription<List<PurchaseDetails>> _iapSubscription;
@@ -85,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     RewardedAdManager.loadAd(); // Pastikan iklan video selalu siap di memori
     _loadProgress();
+    _loadTopWinners();
     _checkInitialConnectivity();
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
       if (mounted) setState(() => _isOnline = result != ConnectivityResult.none);
@@ -112,7 +118,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onRefreshTriggered() {
-    if (mounted) _loadProgress();
+    if (mounted) {
+      _loadProgress();
+      _loadTopWinners();
+    }
+  }
+
+  Future<void> _loadTopWinners() async {
+    try {
+      final res = await DailyChallengeService.leaderboardTopDaily();
+      if (!mounted) return;
+      if (res['code'] == DailyChallengeService.ok) {
+        final list = (res['data']?['top'] as List<dynamic>? ?? []);
+        setState(() {
+          _topWinners = list
+              .take(3)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+          _isLoadingTopWinners = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoadingTopWinners = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingTopWinners = false);
+    }
   }
 
   Future<void> _checkInitialConnectivity() async {
@@ -201,6 +231,155 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 8),
         Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
       ],
+    );
+  }
+
+  Widget _buildTopThreeWinners() {
+    if (_isLoadingTopWinners) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: const Color(0xFFFFB300).withValues(alpha: 0.8),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_topWinners.isEmpty) {
+      return InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LeaderboardScreen(initialKey: 'top_daily'),
+            ),
+          ).then((_) => _loadProgress());
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.white54, size: 14),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'leaderboard.no_winners_yet'.tr(),
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const LeaderboardScreen(initialKey: 'top_daily'),
+          ),
+        ).then((_) => _loadProgress());
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        children: [
+          for (int i = 0; i < _topWinners.length; i++) ...[
+            _buildTopWinnerRow(_topWinners[i], i + 1),
+            if (i < _topWinners.length - 1)
+              Divider(
+                color: Colors.white.withValues(alpha: 0.08),
+                height: 10,
+                thickness: 0.8,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopWinnerRow(Map<String, dynamic> item, int rank) {
+    Color medalBg;
+    Color medalTextColor;
+
+    if (rank == 1) {
+      medalBg = const Color(0xFFFFD700); // Gold
+      medalTextColor = Colors.black87;
+    } else if (rank == 2) {
+      medalBg = const Color(0xFFC0C0C0); // Silver
+      medalTextColor = Colors.black87;
+    } else {
+      medalBg = const Color(0xFFCD7F32); // Bronze
+      medalTextColor = Colors.white;
+    }
+
+    final String name = (item['display_name'] ?? 'Peserta').toString();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          // Medali / Nomor Peringkat
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: medalBg,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: medalBg.withValues(alpha: 0.35),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$rank',
+              style: TextStyle(
+                color: medalTextColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ),
+          const SizedBox(width: 9),
+
+          // Nama Pemenang
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Icon navigasi halus (poin hanya tampil di dalam layar Leaderboard)
+          const Icon(
+            Icons.chevron_right,
+            color: Colors.white38,
+            size: 16,
+          ),
+        ],
+      ),
     );
   }
 
@@ -540,147 +719,169 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // =====================================
-            // 0. KARTU TANTANGAN HARIAN + PAPAN PERINGKAT
+            // 0. KARTU TANTANGAN HARIAN & LEADERBOARD TOP 3 (SATU KARTU TERPADU)
             // =====================================
-            // Keduanya digabung jadi satu kartu: papan peringkat sebelumnya
-            // berupa kartu putih polos yang terjepit di antara dua banner
-            // bergradien, dan itu memutus irama visual beranda.
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
               child: Card(
                 elevation: 3,
-                // clipBehavior wajib, kalau tidak strip bawah menonjol
-                // melewati sudut membulat kartunya.
                 clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(colors: [Color(0xFFEF6C00), Color(0xFFF9A825)]),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        leading: const Icon(Icons.emoji_events, color: Colors.white, size: 36),
-                        title: Text('daily.appbar_title'.tr(),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                        subtitle: Text('daily.banner_desc'.tr(),
-                            style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const DailyChallengeScreen())).then((_) {
-                            _loadProgress();
-                            RewardedAdManager.loadAd();
-                          });
-                        },
-                      ),
-                    ),
-
-                    // Strip papan peringkat: oranye lebih tua, jadi terbaca
-                    // sebagai bagian dari kartu yang sama.
+                    // Bagian 1: Banner Tantangan IQ Harian
                     InkWell(
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const LeaderboardScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const DailyChallengeScreen()),
+                        ).then((_) {
+                          _loadProgress();
+                          RewardedAdManager.loadAd();
+                          _loadTopWinners();
+                        });
                       },
                       child: Container(
-                        width: double.infinity,
-                        color: const Color(0xFFC85A00),
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFFE65100), Color(0xFFF57C00), Color(0xFFFFA000)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                         child: Row(
                           children: [
-                            const Icon(Icons.leaderboard, color: Colors.white, size: 17),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text('leaderboard.appbar_title'.tr(),
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.emoji_events, color: Colors.white, size: 28),
                             ),
-                            const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 13),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          'daily.appbar_title'.tr(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.22),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'leaderboard.daily_challenge_badge'.tr(),
+                                          style: const TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'daily.banner_desc'.tr(),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 13),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
 
-            // =====================================
-            // 0.B KARTU KHUSUS: LEADERBOARD DAILY IQ (TOP IQ)
-            // =====================================
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
-              child: Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4), width: 1.2),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
+                    // Bagian 2: Top 3 Juara Daily + Lihat Semua (Leaderboard)
+                    Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0F172A),
                       ),
-                      child: const Icon(Icons.emoji_events, color: Color(0xFFFFD54F), size: 28),
-                    ),
-                    title: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            'leaderboard.home_top_iq_title'.tr(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
+                      padding: const EdgeInsets.fromLTRB(16, 11, 16, 11),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.workspace_premium, color: Color(0xFFFFD54F), size: 17),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'leaderboard.top_3_title'.tr(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const LeaderboardScreen(initialKey: 'top_daily'),
+                                    ),
+                                  ).then((_) => _loadProgress());
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'leaderboard.btn_see_all'.tr(),
+                                        style: const TextStyle(
+                                          color: Color(0xFFFFB300),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11.5,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      const Icon(Icons.arrow_forward_ios, color: Color(0xFFFFB300), size: 10),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFB300),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'leaderboard.home_top_iq_badge'.tr(),
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Text(
-                        'leaderboard.home_top_iq_desc'.tr(),
-                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          const SizedBox(height: 8),
+                          _buildTopThreeWinners(),
+                        ],
                       ),
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 14),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LeaderboardScreen(initialKey: 'top_daily'),
-                        ),
-                      ).then((_) => _loadProgress());
-                    },
-                  ),
+                  ],
                 ),
               ),
             ),

@@ -477,6 +477,18 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     );
   }
 
+  /// Format angka poin agar ringkas jika mencapai ribuan (misal 1.2K, 15K).
+  static String formatPoints(int points) {
+    if (points >= 1000000) {
+      final val = points / 1000000;
+      return '${val.toStringAsFixed(val >= 10 || val % 1 == 0 ? 0 : 1)}M';
+    } else if (points >= 1000) {
+      final val = points / 1000;
+      return '${val.toStringAsFixed(val >= 10 || val % 1 == 0 ? 0 : 1)}K';
+    }
+    return '$points';
+  }
+
   void _openShare(Map<String, dynamic> me, int peserta, bool isDaily,
       bool isTopDaily, String key, String nama, bool terverifikasi) {
     final judul = isTopDaily
@@ -487,8 +499,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ? 'leaderboard.reguler_title'.tr()
                 : 'leaderboard.pro_title'.tr()));
 
+    final myPoints = (me['total_points'] as int? ?? 0);
     final detail = isTopDaily
-        ? 'leaderboard.my_wins_count'.tr(args: ['${me['total_wins']}'])
+        ? 'leaderboard.my_points_count'.tr(args: [formatPoints(myPoints)])
         : (isDaily
             ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s'
             : null);
@@ -516,8 +529,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       bool isTopDaily, String key, String nama, bool terverifikasi) {
     // Angka IQ sendiri tetap ditampilkan di sini. Yang disembunyikan
     // adalah angka orang lain, bukan angka user terhadap dirinya sendiri.
+    final myPoints = (me['total_points'] as int? ?? 0);
     final detail = isTopDaily
-        ? 'leaderboard.my_wins_count'.tr(args: ['${me['total_wins']}'])
+        ? 'leaderboard.my_points_count'.tr(args: [formatPoints(myPoints)])
         : (isDaily
             ? '${me['correct']}/${me['total']}  ·  ${(((me['duration_ms'] ?? 0) as int) / 1000).toStringAsFixed(1)}s  ·  IQ ${me['iq_harian']}'
             : 'IQ ${me['iq']}');
@@ -550,7 +564,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 Row(
                   children: [
                     if (isTopDaily) ...[
-                      const Icon(Icons.emoji_events, color: Color(0xFFFFD54F), size: 14),
+                      const Icon(Icons.stars_rounded, color: Color(0xFFFFD54F), size: 16),
                       const SizedBox(width: 4),
                     ],
                     Flexible(
@@ -769,7 +783,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             : null);
 
     final iq = isDaily ? r['iq_harian'] : r['iq'];
-    final totalWins = isTopDaily ? (r['total_wins'] as int? ?? 0) : null;
+    final totalPoints = isTopDaily ? (r['total_points'] as int? ?? 0) : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -821,25 +835,40 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ],
             ),
           ),
-          if (isTopDaily)
+          if (isTopDaily && totalPoints != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
               decoration: BoxDecoration(
-                color: rank == 1 ? const Color(0xFFFFF8E1) : Colors.orange.shade50,
+                color: rank == 1
+                    ? const Color(0xFFFFF8E1)
+                    : (rank <= 3 ? Colors.orange.shade50 : const Color(0xFFE8EAF6)),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: rank == 1 ? const Color(0xFFFFD54F) : Colors.orange.shade200),
+                border: Border.all(
+                  color: rank == 1
+                      ? const Color(0xFFFFD54F)
+                      : (rank <= 3 ? Colors.orange.shade200 : const Color(0xFFC5CAE9)),
+                  width: 0.9,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.emoji_events, size: 15, color: rank == 1 ? const Color(0xFFD4A017) : _gold),
+                  Icon(
+                    Icons.stars_rounded,
+                    size: 15,
+                    color: rank == 1
+                        ? const Color(0xFFD4A017)
+                        : (rank <= 3 ? _gold : _brand),
+                  ),
                   const SizedBox(width: 4),
                   Text(
-                    'leaderboard.win_badge'.tr(args: ['$totalWins']),
+                    'leaderboard.points_badge'.tr(args: [formatPoints(totalPoints)]),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: rank == 1 ? const Color(0xFFB78103) : const Color(0xFFBF360C),
+                      color: rank == 1
+                          ? const Color(0xFFB78103)
+                          : (rank <= 3 ? const Color(0xFFBF360C) : _brand),
                     ),
                   ),
                 ],

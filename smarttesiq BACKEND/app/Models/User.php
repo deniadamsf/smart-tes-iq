@@ -65,4 +65,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(DailyWinner::class);
     }
+
+    // Jembatan ke tabel Poin Harian (Peringkat 1-20)
+    public function dailyPoints()
+    {
+        return $this->hasMany(DailyPoint::class);
+    }
 }

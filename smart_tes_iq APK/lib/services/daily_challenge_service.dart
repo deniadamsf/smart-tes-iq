@@ -138,11 +138,13 @@ class DailyChallengeService {
   /// Papan peringkat Top IQ Daily (akumulasi memenangkan tantangan harian).
   static Future<Map<String, dynamic>> leaderboardTopDaily() async {
     final token = await _token();
-    if (token == null) return _wrap(needLogin);
-
     try {
+      final headers = {
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
       final res = await http
-          .get(Uri.parse('$baseUrl/leaderboard/top-daily'), headers: _headers(token))
+          .get(Uri.parse('$baseUrl/leaderboard/top-daily'), headers: headers)
           .timeout(_timeout);
       return _read(res);
     } catch (_) {

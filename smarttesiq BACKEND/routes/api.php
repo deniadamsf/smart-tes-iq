@@ -31,9 +31,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // menarik diri lewat /leaderboard/sembunyi.
     // ---------------------------------------------------------------
     Route::get('/leaderboard/daily', [LeaderboardController::class, 'daily']);
-    Route::get('/leaderboard/top-daily', [LeaderboardController::class, 'topDaily']);
     Route::post('/leaderboard/display-name', [LeaderboardController::class, 'setDisplayName']);
     Route::post('/leaderboard/sembunyi', [LeaderboardController::class, 'setSembunyi']);
     Route::get('/leaderboard/reguler', [LeaderboardController::class, 'reguler']);
     Route::get('/leaderboard/pro', [LeaderboardController::class, 'pro']);
 });
+
+// Papan Top IQ Daily dapat diakses publik (dengan opsional auth sanctum)
+Route::get('/leaderboard/top-daily', [LeaderboardController::class, 'topDaily']);
