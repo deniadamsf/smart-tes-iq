@@ -157,7 +157,17 @@
     "btn_view_all": "View All History",
     "dialog_change_lang_title": "Choose Language",
     "lang_id": "Bahasa Indonesia",
-    "lang_en": "English"
+    "lang_en": "English",
+    "label_completed": "Completed",
+    "label_iq_score": "IQ Score",
+    "label_points": "Points",
+    "label_character": "Character",
+    "label_accuracy": "{}% Accuracy",
+    "brain_game_records_title": "Brain Teaser High Scores",
+    "brain_game_no_record": "None yet",
+    "hero_iq_free": "Regular IQ",
+    "hero_iq_pro": "PRO IQ",
+    "hero_tests_done": "Tests Done"
   },
   "deret_angka_pro": {
     "msg_incomplete": "There are still missed questions. Please check again!",

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -5,6 +6,10 @@ class DatabaseHelper {
   // Membuat instance singleton agar koneksi database hanya dibuka sekali
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+
+  /// Notifier yang berbunyi setiap kali hasil tes baru disimpan atau analisa AI diperbarui,
+  /// sehingga layar Profil di dalam IndexedStack otomatis ikut ter-update.
+  static final ValueNotifier<int> dataChangedNotifier = ValueNotifier<int>(0);
 
   DatabaseHelper._init();
 
@@ -106,7 +111,9 @@ class DatabaseHelper {
 
   Future<int> insertTestResult(Map<String, dynamic> row) async {
     final db = await instance.database;
-    return await db.insert('test_results', row);
+    final id = await db.insert('test_results', row);
+    dataChangedNotifier.value++;
+    return id;
   }
 
   Future<List<Map<String, dynamic>>> getAllTestResults() async {
@@ -201,6 +208,7 @@ class DatabaseHelper {
         where: 'id = ?',
         whereArgs: [maps.first['id']],
       );
+      dataChangedNotifier.value++;
     }
   }
 

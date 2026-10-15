@@ -157,7 +157,17 @@
     "btn_view_all": "Lihat Semua Riwayat",
     "dialog_change_lang_title": "Pilih Bahasa",
     "lang_id": "Bahasa Indonesia",
-    "lang_en": "English"
+    "lang_en": "English",
+    "label_completed": "Selesai",
+    "label_iq_score": "Skor IQ",
+    "label_points": "Poin",
+    "label_character": "Karakter",
+    "label_accuracy": "{}% Akurasi",
+    "brain_game_records_title": "Rekor Tertinggi Asah Otak",
+    "brain_game_no_record": "Belum ada",
+    "hero_iq_free": "IQ Reguler",
+    "hero_iq_pro": "IQ PRO",
+    "hero_tests_done": "Tes Selesai"
   },
   "deret_angka_pro": {
     "msg_incomplete": "Masih ada soal yang terlewat. Silakan cek kembali!",
