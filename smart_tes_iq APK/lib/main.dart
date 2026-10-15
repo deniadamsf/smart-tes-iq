@@ -121,15 +121,25 @@ class _MainNavigatorState extends State<MainNavigator> {
     setState(() {
       _selectedIndex = index;
     });
+    if (!RewardedAdManager.isReady) {
+      RewardedAdManager.loadAd();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       // PERBAIKAN UTAMA: Menggunakan IndexedStack agar Tab Chat AI tidak mereset chat saat ditinggalkan
+      // Dibungkus TickerMode agar Banner Ad di tab Asah Otak & Chat AI baru dimuat saat tab dibuka
       body: IndexedStack(
         index: _selectedIndex,
-        children: _pages,
+        children: List.generate(
+          _pages.length,
+          (i) => TickerMode(
+            enabled: _selectedIndex == i,
+            child: _pages[i],
+          ),
+        ),
       ),
 
       // FITUR LAMA ANDA DIKEMBALIKAN: Tombol FAB "Main Game"

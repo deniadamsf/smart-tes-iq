@@ -355,6 +355,12 @@ class _MbtiResultScreenState extends State<MbtiResultScreen> {
   bool _isLoadingAI = false;
   String _aiAnalysis = "";
 
+  @override
+  void initState() {
+    super.initState();
+    RewardedAdManager.loadAd();
+  }
+
   Future<void> _watchAdToUnlock() async {
     RewardedAdManager.showAd(context, () async {
       setState(() => _isLoadingAI = true);

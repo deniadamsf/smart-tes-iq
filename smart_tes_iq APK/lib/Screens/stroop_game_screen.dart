@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
-import 'package:easy_localization/easy_localization.dart'; // BARU: Untuk terjemahan
+import 'package:easy_localization/easy_localization.dart';
 import '../helpers/ad_helper.dart';
+import '../helpers/rewarded_ad_manager.dart';
+import '../helpers/game_high_score_helper.dart';
 
 class StroopGameScreen extends StatefulWidget {
   const StroopGameScreen({super.key});
@@ -12,16 +14,16 @@ class StroopGameScreen extends StatefulWidget {
 }
 
 class _StroopGameScreenState extends State<StroopGameScreen> {
-  // Status Game
   bool _isPlaying = false;
   bool _isGameOver = false;
+  bool _hasUsedContinueAd = false;
+  bool _isNewHighScore = false;
 
-  // Variabel Permainan
   int _score = 0;
-  int _timeLeft = 60; // Waktu main 60 detik
+  int _highScore = 0;
+  int _timeLeft = 60;
   Timer? _timer;
 
-  // Data Warna - Menggunakan Key Translasi agar dinamis lintas bahasa
   final Map<String, Color> _colorData = {
     'stroop.color_red': Colors.red,
     'stroop.color_blue': Colors.blue,
@@ -31,20 +33,57 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
     'stroop.color_black': Colors.black,
   };
 
-  late String _currentText; // Key teks yang muncul (misal: "stroop.color_red")
-  late String _correctColorName; // Key jawaban benar (misal warna tintanya: "stroop.color_blue")
-  late Color _currentColor; // Warna tinta asli yang dirender
-  List<String> _options = []; // 4 Pilihan tombol
+  late String _currentText;
+  late String _correctColorName;
+  late Color _currentColor;
+  List<String> _options = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHighScore();
+    RewardedAdManager.loadAd();
+  }
+
+  Future<void> _loadHighScore() async {
+    final best = await GameHighScoreHelper.getHighScore(GameHighScoreHelper.kStroop);
+    if (mounted) {
+      setState(() => _highScore = best);
+    }
+  }
 
   void _startGame() {
     setState(() {
       _isPlaying = true;
       _isGameOver = false;
+      _hasUsedContinueAd = false;
+      _isNewHighScore = false;
       _score = 0;
       _timeLeft = 60;
     });
+    RewardedAdManager.loadAd();
     _generateQuestion();
     _startTimer();
+  }
+
+  void _continueWithAd() {
+    RewardedAdManager.showAd(context, () {
+      if (!mounted) return;
+      setState(() {
+        _hasUsedContinueAd = true;
+        _isGameOver = false;
+        _isPlaying = true;
+        _timeLeft = 15;
+      });
+      _startTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('game_menu.msg_continue_15s'.tr()),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    });
   }
 
   void _startTimer() {
@@ -62,10 +101,8 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
     final random = Random();
     List<String> colorNames = _colorData.keys.toList();
 
-    // 1. Pilih teks secara acak
     _currentText = colorNames[random.nextInt(colorNames.length)];
 
-    // 2. Pilih warna tinta secara acak (Pastikan BEDA dengan teksnya agar mengecoh)
     _correctColorName = colorNames[random.nextInt(colorNames.length)];
     while (_correctColorName == _currentText) {
       _correctColorName = colorNames[random.nextInt(colorNames.length)];
@@ -73,38 +110,55 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
 
     _currentColor = _colorData[_correctColorName]!;
 
-    // 3. Buat 4 pilihan jawaban (1 Benar, 3 Salah)
-    Set<String> optionsSet = {_correctColorName, _currentText}; // Masukkan jawaban benar & pengecoh utama
+    Set<String> optionsSet = {_correctColorName, _currentText};
     while (optionsSet.length < 4) {
       optionsSet.add(colorNames[random.nextInt(colorNames.length)]);
     }
 
     _options = optionsSet.toList();
-    _options.shuffle(random); // Acak posisi tombol
+    _options.shuffle(random);
 
     setState(() {});
   }
 
   void _checkAnswer(String selectedAnswer) {
-    // Cocokkan key translasinya untuk verifikasi
     if (selectedAnswer == _correctColorName) {
-      // Benar: Poin bertambah (+10)
-      setState(() => _score += 10);
+      final int nextScore = _score + 10;
+      setState(() {
+        _score = nextScore;
+        if (nextScore > _highScore) {
+          _highScore = nextScore;
+          _isNewHighScore = true;
+        }
+      });
+      GameHighScoreHelper.updateHighScore(GameHighScoreHelper.kStroop, nextScore);
       _generateQuestion();
     } else {
-      // Salah: Poin berkurang (-5) dan layar bergetar / merah sebentar (efek visual)
       setState(() {
-        _score = (_score - 5 < 0) ? 0 : _score - 5; // Skor tidak boleh minus
+        _score = (_score - 5 < 0) ? 0 : _score - 5;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('stroop.msg_wrong'.tr()), backgroundColor: Colors.red, duration: const Duration(milliseconds: 400)),
+        SnackBar(
+          content: Text('stroop.msg_wrong'.tr()),
+          backgroundColor: Colors.red,
+          duration: const Duration(milliseconds: 400),
+        ),
       );
     }
   }
 
-  void _endGame() {
+  Future<void> _endGame() async {
     _timer?.cancel();
+    final isNew = await GameHighScoreHelper.updateHighScore(
+      GameHighScoreHelper.kStroop,
+      _score,
+    );
+    if (!mounted) return;
     setState(() {
+      if (isNew || _score > _highScore) {
+        _highScore = _score;
+        _isNewHighScore = true;
+      }
       _isPlaying = false;
       _isGameOver = true;
     });
@@ -132,14 +186,13 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
             Expanded(
               child: !_isPlaying ? _buildMenuScreen() : _buildGameScreen(),
             ),
-
-            // ==========================================
-            // KOTAK BANNER IKLAN
-            // ==========================================
             Container(
               width: double.infinity,
-              height: 50,
-              color: Colors.grey.shade300,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
+              ),
               child: const Center(
                 child: CustomBannerAd(),
               ),
@@ -150,24 +203,82 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
     );
   }
 
-  // Layar Menu & Game Over
   Widget _buildMenuScreen() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.palette, size: 80, color: Color(0xFF0D47A1)),
-            const SizedBox(height: 20),
+            const Icon(Icons.palette, size: 76, color: Color(0xFF0D47A1)),
+            const SizedBox(height: 16),
             Text(
               _isGameOver ? 'stroop.time_up'.tr() : 'stroop.game_title'.tr(),
               style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
             ),
             const SizedBox(height: 10),
+
+            if (_highScore > 0)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber.shade700),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.emoji_events, color: Colors.amber.shade900, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'game_menu.best_score_label'.tr(args: [_highScore.toString()]),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber.shade900,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             if (_isGameOver) ...[
-              Text('stroop.final_score'.tr(args: [_score.toString()]), style: const TextStyle(fontSize: 24, color: Colors.orange, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 30),
+              if (_isNewHighScore && _score > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    'game_menu.new_high_score'.tr(),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.green),
+                  ),
+                ),
+              Text(
+                'stroop.final_score'.tr(args: [_score.toString()]),
+                style: const TextStyle(fontSize: 24, color: Colors.orange, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+
+              if (!_hasUsedContinueAd) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _continueWithAd,
+                    icon: const Icon(Icons.play_circle_fill, color: Colors.white, size: 24),
+                    label: Text(
+                      'game_menu.btn_continue_15s'.tr(),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.deepOrange,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+              ],
             ] else ...[
               Text(
                 'stroop.rules'.tr(),
@@ -182,7 +293,10 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
               child: ElevatedButton.icon(
                 onPressed: _startGame,
                 icon: const Icon(Icons.play_arrow, color: Colors.white, size: 28),
-                label: Text(_isGameOver ? 'stroop.btn_play_again'.tr() : 'stroop.btn_start'.tr(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                label: Text(
+                  _isGameOver ? 'stroop.btn_play_again'.tr() : 'stroop.btn_start'.tr(),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: const Color(0xFF0D47A1),
@@ -196,54 +310,85 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
     );
   }
 
-  // Layar Saat Bermain
   Widget _buildGameScreen() {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
-          // Header Status (Waktu & Skor)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade300)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _timeLeft <= 10 ? Colors.red.shade50 : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _timeLeft <= 10 ? Colors.red : Colors.grey.shade300),
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.timer, color: Colors.red),
-                    const SizedBox(width: 8),
-                    Text('00:${_timeLeft.toString().padLeft(2, '0')}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Icon(Icons.timer, color: _timeLeft <= 10 ? Colors.red : const Color(0xFF0D47A1)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '00:${_timeLeft.toString().padLeft(2, '0')}',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: _timeLeft <= 10 ? Colors.red : Colors.black87,
+                      ),
+                    ),
                   ],
                 ),
               ),
+              if (_highScore > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.emoji_events, size: 16, color: Colors.amber.shade900),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_highScore',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                      ),
+                    ],
+                  ),
+                ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(color: const Color(0xFF0D47A1), borderRadius: BorderRadius.circular(20)),
-                child: Text('stroop.score'.tr(args: [_score.toString()]), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text(
+                  'stroop.score'.tr(args: [_score.toString()]),
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
               ),
             ],
           ),
 
           const Spacer(),
 
-          // KATA PENGECOH
           Text('stroop.question'.tr(), style: const TextStyle(color: Colors.grey, fontSize: 16)),
           const SizedBox(height: 10),
-          Text(
-            _currentText.tr(), // Teks yang mengecoh DITERJEMAHKAN di sini
-            style: TextStyle(
-              fontSize: 64,
-              fontWeight: FontWeight.w900,
-              color: _currentColor, // Warna asli (Jawaban yang benar)
-              letterSpacing: 4,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              _currentText.tr(),
+              style: TextStyle(
+                fontSize: 64,
+                fontWeight: FontWeight.w900,
+                color: _currentColor,
+                letterSpacing: 4,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
 
           const Spacer(),
 
-          // TOMBOL JAWABAN (GRID 2x2)
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -265,7 +410,7 @@ class _StroopGameScreenState extends State<StroopGameScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 child: Text(
-                  _options[index].tr(), // Opsi DITERJEMAHKAN di sini
+                  _options[index].tr(),
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               );

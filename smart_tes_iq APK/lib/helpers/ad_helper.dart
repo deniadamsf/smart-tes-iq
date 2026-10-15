@@ -33,7 +33,7 @@ class AdHelper {
 }
 
 // ========================================================
-// WIDGET BANNER PRAKTIS (ANCHORED / INLINE ADAPTIVE BANNER)
+// WIDGET BANNER PRAKTIS (ANCHORED ADAPTIVE + 320x50 FALLBACK)
 // ========================================================
 class CustomBannerAd extends StatefulWidget {
   const CustomBannerAd({super.key});
@@ -42,18 +42,47 @@ class CustomBannerAd extends StatefulWidget {
   State<CustomBannerAd> createState() => _CustomBannerAdState();
 }
 
-class _CustomBannerAdState extends State<CustomBannerAd> {
+class _CustomBannerAdState extends State<CustomBannerAd>
+    with WidgetsBindingObserver {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   bool _isLoading = false;
+  bool _useStandardBannerFallback = false;
+  bool _wasTickerEnabled = false;
   int _retryAttempt = 0;
   Timer? _retryTimer;
+  double? _lastMaxWidth;
+  double? _lastMaxHeight;
 
   static const int _maxRetries = 2;
 
-  Future<void> _loadAdaptiveBanner({double? maxWidth, double? maxHeight}) async {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        _bannerAd == null &&
+        !_isLoading &&
+        TickerMode.valuesOf(context).enabled) {
+      _retryAttempt = 0;
+      _useStandardBannerFallback = false;
+      _loadBanner(maxWidth: _lastMaxWidth, maxHeight: _lastMaxHeight);
+    }
+  }
+
+  Future<void> _loadBanner({double? maxWidth, double? maxHeight}) async {
     if (!mounted || _isLoading) return;
+    // Jangan memuat banner saat tab masih tersembunyi di belakang IndexedStack
+    if (!TickerMode.valuesOf(context).enabled) return;
+
     _isLoading = true;
+    _lastMaxWidth = maxWidth;
+    _lastMaxHeight = maxHeight;
 
     final mediaWidth = MediaQuery.of(context).size.width;
     final int adWidth = (maxWidth != null && maxWidth.isFinite && maxWidth > 0)
@@ -64,18 +93,18 @@ class _CustomBannerAdState extends State<CustomBannerAd> {
             ? maxHeight.truncate()
             : 60;
 
-    // 1. Coba Anchored Adaptive Banner (Format dengan eCPM & Match Rate tertinggi)
-    AdSize? adSize =
-        await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(adWidth);
+    AdSize adSize = AdSize.banner; // Default 320x50 (kompatibel penuh dengan AdMob, Unity & Liftoff)
 
-    // 2. Pastikan tingginya muat di dalam Container induk (mis. height: 50 atau 59).
-    // Jika Anchored Adaptive lebih tinggi dari wadahnya, gunakan Inline Adaptive
-    // dengan lebar penuh layar agar iklan tidak ditolak AdView karena kurang ruang.
-    if (adSize == null || adSize.height > allowedHeight) {
-      adSize = AdSize.getInlineAdaptiveBannerAdSize(
+    if (!_useStandardBannerFallback) {
+      final anchoredSize =
+          await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
         adWidth,
-        allowedHeight.clamp(50, 60),
       );
+      if (anchoredSize != null &&
+          anchoredSize.height > 0 &&
+          anchoredSize.height <= allowedHeight) {
+        adSize = anchoredSize;
+      }
     }
 
     if (!mounted) {
@@ -94,6 +123,10 @@ class _CustomBannerAdState extends State<CustomBannerAd> {
             ad.dispose();
             return;
           }
+          debugPrint(
+            '[CustomBannerAd] Banner BERHASIL dimuat (${adSize.width}x${adSize.height}, '
+            'Mediation: ${ad.responseInfo?.mediationAdapterClassName ?? "AdMob"})',
+          );
           _isLoading = false;
           _retryAttempt = 0;
           setState(() {
@@ -102,21 +135,36 @@ class _CustomBannerAdState extends State<CustomBannerAd> {
           });
         },
         onAdFailedToLoad: (ad, err) {
-          debugPrint('[CustomBannerAd] Banner gagal dimuat: $err');
+          debugPrint(
+            '[CustomBannerAd] Banner (${adSize.width}x${adSize.height}) gagal dimuat: $err',
+          );
           ad.dispose();
           _bannerAd = null;
           _isLoading = false;
           if (!mounted) return;
           setState(() => _isLoaded = false);
 
-          // Retry sopan maksimal 2x dengan jeda 45 detik (bukan spam)
-          // supaya jika user sedang mengerjakan tes 10 menit, banner tetap bisa terisi.
+          // Jika tadi mencoba Anchored Adaptive dan gagal (No Fill),
+          // langsung fallback ke ukuran standar 320x50 (AdSize.banner) dalam 2 detik
+          // agar stok iklan 320x50 dari Unity Ads, Liftoff, dan AdMob dapat masuk.
+          if (!_useStandardBannerFallback && adSize != AdSize.banner) {
+            _useStandardBannerFallback = true;
+            _retryTimer?.cancel();
+            _retryTimer = Timer(const Duration(seconds: 2), () {
+              if (mounted) {
+                _loadBanner(maxWidth: maxWidth, maxHeight: maxHeight);
+              }
+            });
+            return;
+          }
+
+          // Retry sopan maksimal 2x dengan jeda 30 detik (bukan spam)
           if (_retryAttempt < _maxRetries) {
             _retryAttempt++;
             _retryTimer?.cancel();
-            _retryTimer = Timer(const Duration(seconds: 45), () {
+            _retryTimer = Timer(const Duration(seconds: 30), () {
               if (mounted) {
-                _loadAdaptiveBanner(maxWidth: maxWidth, maxHeight: maxHeight);
+                _loadBanner(maxWidth: maxWidth, maxHeight: maxHeight);
               }
             });
           }
@@ -127,6 +175,7 @@ class _CustomBannerAdState extends State<CustomBannerAd> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _retryTimer?.cancel();
     _bannerAd?.dispose();
     super.dispose();
@@ -134,12 +183,28 @@ class _CustomBannerAdState extends State<CustomBannerAd> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isTickerEnabled = TickerMode.valuesOf(context).enabled;
+
+    // Jika tab baru saja menjadi aktif (mis. user membuka tab Asah Otak / Chat AI)
+    // dan banner belum ada, reset retry agar langsung dimuat.
+    if (isTickerEnabled && !_wasTickerEnabled && _bannerAd == null && !_isLoading) {
+      _retryAttempt = 0;
+      _useStandardBannerFallback = false;
+    }
+    _wasTickerEnabled = isTickerEnabled;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (_bannerAd == null && !_isLoading && _retryAttempt == 0) {
+        _lastMaxWidth = constraints.maxWidth;
+        _lastMaxHeight = constraints.maxHeight;
+
+        if (isTickerEnabled &&
+            _bannerAd == null &&
+            !_isLoading &&
+            _retryAttempt == 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && _bannerAd == null && !_isLoading) {
-              _loadAdaptiveBanner(
+              _loadBanner(
                 maxWidth: constraints.maxWidth,
                 maxHeight: constraints.maxHeight,
               );
@@ -148,11 +213,18 @@ class _CustomBannerAdState extends State<CustomBannerAd> {
         }
 
         if (_isLoaded && _bannerAd != null) {
+          final double w = _bannerAd!.size.width > 0
+              ? _bannerAd!.size.width.toDouble()
+              : 320.0;
+          final double h = _bannerAd!.size.height > 0
+              ? _bannerAd!.size.height.toDouble()
+              : 50.0;
+
           return Container(
             color: Colors.white,
             alignment: Alignment.center,
-            width: _bannerAd!.size.width.toDouble(),
-            height: _bannerAd!.size.height.toDouble(),
+            width: w,
+            height: h,
             child: AdWidget(ad: _bannerAd!),
           );
         }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/database_helper.dart';
 import '../helpers/credit_store.dart';
+import '../helpers/game_high_score_helper.dart';
 
 class AuthService {
   static final ValueNotifier<int> refreshTrigger = ValueNotifier(0);
@@ -101,6 +102,13 @@ class AuthService {
                 data[k] == null ? null : int.tryParse(data[k].toString()),
           );
         }
+
+        // --- Tarik Rekor Tertinggi Game Asah Otak dari server ---
+        if (data['game_high_scores'] is Map) {
+          await GameHighScoreHelper.applyFromServer(
+            Map<String, dynamic>.from(data['game_high_scores'] as Map),
+          );
+        }
         // ---------------------------------------------------
 
         final db = await DatabaseHelper.instance.database;
@@ -160,6 +168,8 @@ class AuthService {
     // dipulihkan penuh lagi setelah dipakai.
     final diberikan = await CreditStore.diberikanSemua();
     final terpakai = await CreditStore.terpakaiSemua();
+    final gameHighScores = await GameHighScoreHelper.getAllHighScores();
+    final adaSkorGame = gameHighScores.values.any((v) => v > 0);
 
     int localWartegg = diberikan[CreditStore.kWartegg] ?? 0;
     int localEqSq = diberikan[CreditStore.kEqSq] ?? 0;
@@ -167,8 +177,14 @@ class AuthService {
     final adaPemakaian = terpakai.values.any((v) => v > 0);
     // ---------------------------------------
 
-    // PENTING: Ubah kondisi early return ini agar jika tes kosong tapi user punya koin, koinnya tetap ter-sync.
-    if (unsyncedTests.isEmpty && unsyncedChats.isEmpty && localWartegg == 0 && localEqSq == 0 && localIqPro == 0 && !adaPemakaian) return;
+    // PENTING: Ubah kondisi early return ini agar jika tes kosong tapi user punya koin/skor game, tetap ter-sync.
+    if (unsyncedTests.isEmpty &&
+        unsyncedChats.isEmpty &&
+        localWartegg == 0 &&
+        localEqSq == 0 &&
+        localIqPro == 0 &&
+        !adaPemakaian &&
+        !adaSkorGame) return;
 
     try {
       final syncResponse = await http.post(
@@ -181,12 +197,13 @@ class AuthService {
         body: jsonEncode({
           'tests': unsyncedTests,
           'chats': unsyncedChats,
-          // --- TAMBAHAN BARU: Kirim Koin Lokal ke Server ---
+          // --- TAMBAHAN BARU: Kirim Koin Lokal & Rekor Game ke Server ---
           'wartegg_credits': localWartegg,
           'eq_sq_credits': localEqSq,
           'kredit_iq_pro': localIqPro,
           // Kunci tambahan; backend lama mengabaikannya tanpa masalah.
           'kredit_terpakai': terpakai,
+          'game_high_scores': gameHighScores,
         }),
       );
 
@@ -232,10 +249,11 @@ class AuthService {
     await prefs.remove('user_name');
     await prefs.remove('user_email');
 
-    // --- Bersihkan koin lokal HP saat logout ---
+    // --- Bersihkan koin lokal & rekor game HP saat logout ---
     // Termasuk kedua penghitungnya; kalau hanya saldo yang dihapus,
     // penghitung lama akan tercampur dengan akun berikutnya.
     await CreditStore.bersihkan();
+    await GameHighScoreHelper.clearAll();
     // ----------------------------------------------------------
 
     final db = await DatabaseHelper.instance.database;

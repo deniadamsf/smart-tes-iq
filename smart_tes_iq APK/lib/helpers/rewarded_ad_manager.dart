@@ -159,37 +159,107 @@ class RewardedAdManager {
     return isReady;
   }
 
+  static bool _isShowingAd = false;
+
   // FUNGSI 2: MENAMPILKAN IKLAN & MEMBERIKAN HADIAH
-  static void showAd(
+  static Future<void> showAd(
     BuildContext context,
     VoidCallback onRewardEarned, {
     VoidCallback? onUnavailable,
     VoidCallback? onDismissed,
-  }) {
-    if (!isReady) {
-      loadAd(forceResetRetry: true); // muat untuk kesempatan berikutnya
+  }) async {
+    if (_isShowingAd) return;
 
-      if (onUnavailable != null) {
-        onUnavailable();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ads.not_ready'.tr()),
-            backgroundColor: Colors.orange,
-          ),
-        );
+    // Jika iklan belum siap di memori saat tombol ditekan (mis. di layar Hasil Tes / Chat AI),
+    // tunggu hingga 6 detik dengan indikator loading ringan agar iklan langsung tampil
+    // pada klik pertama tanpa melempar pesan "Iklan belum siap".
+    if (!isReady) {
+      _isShowingAd = true;
+      BuildContext? dialogCtx;
+      bool dialogOpen = true;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          dialogCtx = ctx;
+          return PopScope(
+            canPop: false,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.8,
+                        color: Color(0xFF0D47A1),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Material(
+                      color: Colors.transparent,
+                      child: Text(
+                        'daily.ad_preparing'.tr(),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ).then((_) => dialogOpen = false);
+
+      final loaded = await ensureLoaded(timeout: const Duration(seconds: 6));
+
+      if (dialogOpen && dialogCtx != null && dialogCtx!.mounted) {
+        Navigator.of(dialogCtx!).pop();
       }
-      return;
+      _isShowingAd = false;
+
+      if (!context.mounted) return;
+
+      if (!loaded || !isReady) {
+        if (onUnavailable != null) {
+          onUnavailable();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('ads.not_ready'.tr()),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
     }
 
+    _isShowingAd = true;
     bool earned = false;
     final adToShow = _rewardedAd!;
     _rewardedAd = null;
     _loadedAt = null;
 
     adToShow.fullScreenContentCallback = FullScreenContentCallback(
+      onAdImpression: (ad) {
+        debugPrint('[RewardedAdManager] Impression RewardedAd tercatat.');
+      },
       onAdDismissedFullScreenContent: (ad) {
         debugPrint('[RewardedAdManager] RewardedAd ditutup oleh pengguna.');
+        _isShowingAd = false;
         ad.dispose();
 
         // Beri jeda 800ms agar Activity iklan full-screen Android selesai ditutup
@@ -204,6 +274,7 @@ class RewardedAdManager {
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('[RewardedAdManager] RewardedAd gagal tampil: $error');
+        _isShowingAd = false;
         ad.dispose();
         Future.delayed(const Duration(milliseconds: 800), () {
           loadAd(forceResetRetry: true);

@@ -243,7 +243,17 @@
     "game3_title": "Hitung Cepat (Math Rush)",
     "game3_desc": "Selesaikan matematika dasar dengan cepat. Uji batas memori kerja Anda.",
     "game4_title": "Memori Ikon (Match)",
-    "game4_desc": "Ingat posisi gambar dan temukan pasangannya. 3x salah = Game Over!"
+    "game4_desc": "Ingat posisi gambar dan temukan pasangannya. Bertahan sejauh mungkin!",
+    "game5_title": "Sudoku Logika (9x9)",
+    "game5_desc": "Isi angka 1–9 pada kotak 9x9 tanpa berulang. Melatih penalaran deduktif & fokus.",
+    "high_score_badge": "Rekor: {} Poin",
+    "high_level_badge": "Rekor: Level {}",
+    "no_record": "Belum ada rekor",
+    "best_score_label": "Rekor Tertinggi: {}",
+    "best_level_label": "Rekor Tertinggi: Level {}",
+    "new_high_score": "🏆 REKOR BARU!",
+    "btn_continue_15s": "Lanjut Main +15 Detik (Tonton Iklan)",
+    "msg_continue_15s": "⏱️ Waktu bertambah +15 Detik! Ayo kejar rekor baru!"
   },
   "home": {
     "play_game_fab": "Main Game",
@@ -359,14 +369,14 @@
     "time_up": "Waktu Habis!",
     "game_title": "Memori Survival",
     "level_survived": "Anda bertahan hingga Level {}",
-    "instructions": "Modal 10 Menit.\nBenar = +10 Detik. Salah = -5 Detik.\nSeberapa jauh Anda bisa bertahan?",
+    "instructions": "Modal 60 Detik.\nCocok = +5 Detik • Salah = -5 Detik.\nSeberapa jauh Anda bisa bertahan?",
     "btn_play": "Main Lagi",
     "btn_start": "Mulai Bertahan",
     "level_clear": "Level {} Selesai!",
-    "bonus_time": "Bonus Waktu: +30 Detik",
+    "bonus_time": "Bonus Waktu: +15 Detik",
     "btn_next_level": "Lanjut Level Berikutnya",
     "level_label": "Level {}",
-    "bonus_indicator": "+10 Detik!",
+    "bonus_indicator": "+5 Detik!",
     "penalty_indicator": "-5 Detik!"
   },
   "logika_pro": {
@@ -787,5 +797,28 @@
     "rule_privacy_desc": "Skor IQ orang lain dirahasiakan untuk kenyamanan bersama. Hanya kamu yang dapat melihat skor IQ milikmu sendiri.",
     "btn_understand": "Mengerti",
     "status_completed": "Selesai"
+  },
+  "sudoku": {
+    "appbar_title": "Asah Otak: Sudoku",
+    "game_title": "Sudoku Logika 9x9",
+    "select_difficulty": "Pilih tingkat kesulitan untuk memulai:",
+    "level_easy": "Mudah (+10 Poin/Kotak)",
+    "level_medium": "Sedang (+20 Poin/Kotak)",
+    "level_hard": "Sulit (+30 Poin/Kotak)",
+    "rules": "Isi kotak kosong dengan angka 1–9.\nSetiap baris, kolom, dan blok 3x3 tidak boleh memiliki angka yang sama.",
+    "score": "Skor: {}",
+    "btn_erase": "Hapus",
+    "btn_notes": "Catatan",
+    "btn_notes_on": "Catatan: ON",
+    "btn_hint_ad": "Bantuan (Iklan)",
+    "msg_hint_used": "💡 1 angka benar telah dibuka!",
+    "msg_wrong_cell": "Angka kurang tepat! Nyawa -1 ❤️",
+    "game_over_lives": "Nyawa Habis!",
+    "game_over_time": "Waktu Habis!",
+    "victory_title": "🎉 Sudoku Selesai!",
+    "final_score": "Skor Akhir Anda: {}",
+    "btn_continue_ad": "Lanjut +1 Nyawa & +15 Detik (Tonton Iklan)",
+    "msg_continued": "❤️ +1 Nyawa & +15 Detik ditambahkan! Lanjutkan permainan!",
+    "btn_play_again": "Main Lagi"
   }
 }

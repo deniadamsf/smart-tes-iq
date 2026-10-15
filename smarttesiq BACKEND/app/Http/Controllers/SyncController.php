@@ -12,6 +12,14 @@ class SyncController extends Controller
 {
     private const KOLOM_KREDIT = ['wartegg_credits', 'eq_sq_credits', 'kredit_iq_pro'];
 
+    private const KUNCI_GAME_ASAH_OTAK = [
+        'anagram',
+        'stroop',
+        'math_rush',
+        'memory_match',
+        'sudoku',
+    ];
+
     /**
      * Batas mutlak. Satu pembelian memberi +10 kredit
      * (pro_iq_dashboard_screen.dart:108); nilai tertinggi yang benar-benar
@@ -28,6 +36,9 @@ class SyncController extends Controller
 
     /** Batas kewarasan untuk penghitung pemakaian; tidak dibatasi per sync. */
     private const PEMAKAIAN_MAKS = 100000;
+
+    /** Batas kewarasan untuk rekor skor tertinggi game Asah Otak. */
+    private const REKOR_GAME_MAKS = 100000;
 
     // MENERIMA DATA DARI HP FLUTTER
     public function syncData(Request $request)
@@ -57,6 +68,15 @@ class SyncController extends Controller
                     );
                 }
             }
+
+            // --- REKOR TERTINGGI GAME ASAH OTAK ---
+            if (is_array($request->input('game_high_scores'))) {
+                $user->game_high_scores = $this->gabungRekorGame(
+                    $user->game_high_scores ?? [],
+                    $request->input('game_high_scores')
+                );
+            }
+
             $user->save();
             // ------------------------------------
 
@@ -178,6 +198,7 @@ class SyncController extends Controller
                 'eq_sq_credits' => (int) $user->eq_sq_credits_terpakai,
                 'kredit_iq_pro' => (int) $user->kredit_iq_pro_terpakai,
             ],
+            'game_high_scores' => $this->rekorGame($user),
         ], 200);
     }
     
@@ -265,5 +286,34 @@ class SyncController extends Controller
         $terpakai = (int) ($user->{$kolom.'_terpakai'} ?? 0);
 
         return max(0, $diberikan - $terpakai);
+    }
+
+    /**
+     * Gabungkan rekor tertinggi game Asah Otak dari client dengan server.
+     * Hanya menerima kunci resmi dan selalu mengambil nilai tertinggi
+     * dengan batas kewarasan REKOR_GAME_MAKS.
+     */
+    private function gabungRekorGame(array $serverScores, array $clientScores): array
+    {
+        $hasil = [];
+        foreach (self::KUNCI_GAME_ASAH_OTAK as $kunci) {
+            $lama = isset($serverScores[$kunci]) && is_numeric($serverScores[$kunci])
+                ? max(0, (int) $serverScores[$kunci])
+                : 0;
+            $baru = isset($clientScores[$kunci]) && is_numeric($clientScores[$kunci])
+                ? max(0, min((int) $clientScores[$kunci], self::REKOR_GAME_MAKS))
+                : 0;
+            $hasil[$kunci] = max($lama, $baru);
+        }
+
+        return $hasil;
+    }
+
+    /** Mengembalikan map rekor tertinggi 5 game Asah Otak milik user. */
+    private function rekorGame($user): array
+    {
+        $tersimpan = is_array($user->game_high_scores) ? $user->game_high_scores : [];
+
+        return $this->gabungRekorGame($tersimpan, []);
     }
 }

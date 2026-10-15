@@ -243,7 +243,17 @@
     "game3_title": "Fast Math (Math Rush)",
     "game3_desc": "Solve basic math quickly. Test the limits of your working memory.",
     "game4_title": "Icon Memory (Match)",
-    "game4_desc": "Remember the image position and find its pair. 3 mistakes = Game Over!"
+    "game4_desc": "Remember the image position and find its pair. Survive as far as you can!",
+    "game5_title": "Logic Sudoku (9x9)",
+    "game5_desc": "Fill numbers 1–9 into the 9x9 grid without repeating. Trains deductive reasoning & focus.",
+    "high_score_badge": "Best: {} Pts",
+    "high_level_badge": "Best: Level {}",
+    "no_record": "No record yet",
+    "best_score_label": "High Score: {}",
+    "best_level_label": "Best Record: Level {}",
+    "new_high_score": "🏆 NEW HIGH SCORE!",
+    "btn_continue_15s": "Continue +15s (Watch Ad)",
+    "msg_continue_15s": "⏱️ +15 Seconds added! Go beat your high score!"
   },
   "home": {
     "play_game_fab": "Play Game",
@@ -359,14 +369,14 @@
     "time_up": "Time's Up!",
     "game_title": "Memory Survival",
     "level_survived": "You survived up to Level {}",
-    "instructions": "10 Minutes start.\nCorrect = +10s. Wrong = -5s.\nHow far can you survive?",
+    "instructions": "60 Seconds start.\nMatch = +5s • Miss = -5s.\nHow far can you survive?",
     "btn_play": "Play Again",
     "btn_start": "Start Survival",
     "level_clear": "Level {} Clear!",
-    "bonus_time": "Bonus Time: +30s",
+    "bonus_time": "Bonus Time: +15s",
     "btn_next_level": "Next Level",
     "level_label": "Level {}",
-    "bonus_indicator": "+10 Seconds!",
+    "bonus_indicator": "+5 Seconds!",
     "penalty_indicator": "-5 Seconds!"
   },
   "logika_pro": {
@@ -787,5 +797,28 @@
     "rule_privacy_desc": "Other players' IQ scores are kept private. Only you can see your own IQ score.",
     "btn_understand": "Got it",
     "status_completed": "Completed"
+  },
+  "sudoku": {
+    "appbar_title": "Brain Teaser: Sudoku",
+    "game_title": "Logic Sudoku 9x9",
+    "select_difficulty": "Select difficulty to start:",
+    "level_easy": "Easy (+10 Pts/Cell)",
+    "level_medium": "Medium (+20 Pts/Cell)",
+    "level_hard": "Hard (+30 Pts/Cell)",
+    "rules": "Fill empty cells with numbers 1–9.\nEach row, column, and 3x3 box must contain unique numbers.",
+    "score": "Score: {}",
+    "btn_erase": "Erase",
+    "btn_notes": "Notes",
+    "btn_notes_on": "Notes: ON",
+    "btn_hint_ad": "Hint (Ad)",
+    "msg_hint_used": "💡 1 correct number revealed!",
+    "msg_wrong_cell": "Incorrect number! -1 Life ❤️",
+    "game_over_lives": "Out of Lives!",
+    "game_over_time": "Time's Up!",
+    "victory_title": "🎉 Sudoku Completed!",
+    "final_score": "Your Final Score: {}",
+    "btn_continue_ad": "Continue +1 Life & +15s (Watch Ad)",
+    "msg_continued": "❤️ +1 Life & +15s added! Keep playing!",
+    "btn_play_again": "Play Again"
   }
 }

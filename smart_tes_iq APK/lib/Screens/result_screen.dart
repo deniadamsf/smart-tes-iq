@@ -37,6 +37,12 @@ class _ResultScreenState extends State<ResultScreen> {
 
   final GlobalKey _shareKey = GlobalKey();
 
+  @override
+  void initState() {
+    super.initState();
+    RewardedAdManager.loadAd();
+  }
+
   // Menerjemahkan kategori berdasarkan bahasa aktif
   String get _category {
     double percentage = widget.totalQuestions > 0 ? widget.score / widget.totalQuestions : 0;

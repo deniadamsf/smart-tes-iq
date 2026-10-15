@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
-import 'package:easy_localization/easy_localization.dart'; // BARU: Impor ini
+import 'package:easy_localization/easy_localization.dart';
 import '../helpers/ad_helper.dart';
+import '../helpers/rewarded_ad_manager.dart';
+import '../helpers/game_high_score_helper.dart';
 
 class MemoryMatchGameScreen extends StatefulWidget {
   const MemoryMatchGameScreen({super.key});
@@ -15,9 +17,12 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
   bool _isPlaying = false;
   bool _isGameOver = false;
   bool _isLevelClear = false;
+  bool _hasUsedContinueAd = false;
+  bool _isNewHighScore = false;
 
   int _level = 1;
-  int _timeLeft = 600;
+  int _highLevel = 0;
+  int _timeLeft = 60;
   Timer? _timer;
 
   List<IconData> _cards = [];
@@ -35,25 +40,84 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
     Icons.castle, Icons.rocket, Icons.directions_bike, Icons.fastfood,
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadHighScore();
+    RewardedAdManager.loadAd();
+  }
+
+  Future<void> _loadHighScore() async {
+    final best = await GameHighScoreHelper.getHighScore(GameHighScoreHelper.kMemoryMatch);
+    if (mounted) {
+      setState(() => _highLevel = best);
+    }
+  }
+
   void _startGame() {
     setState(() {
       _isPlaying = true;
       _isGameOver = false;
       _isLevelClear = false;
+      _hasUsedContinueAd = false;
+      _isNewHighScore = false;
       _level = 1;
-      _timeLeft = 600;
+      _timeLeft = 60;
     });
 
+    RewardedAdManager.loadAd();
+    _updateRecordIfNeeded(1);
     _startTimer();
     _setupLevel();
   }
 
-  void _nextLevel() {
-    setState(() {
-      _level++;
-      _isLevelClear = false;
-      _timeLeft += 30;
+  Future<void> _updateRecordIfNeeded(int reachedLevel) async {
+    if (reachedLevel > _highLevel) {
+      setState(() {
+        _highLevel = reachedLevel;
+        _isNewHighScore = true;
+      });
+    }
+    await GameHighScoreHelper.updateHighScore(
+      GameHighScoreHelper.kMemoryMatch,
+      reachedLevel,
+    );
+  }
+
+  void _continueWithAd() {
+    RewardedAdManager.showAd(context, () {
+      if (!mounted) return;
+      setState(() {
+        _hasUsedContinueAd = true;
+        _isGameOver = false;
+        _isPlaying = true;
+        _timeLeft = 15;
+        _previousIndex = -1;
+        _isProcessing = false;
+        // Kembalikan kartu yang belum cocok menjadi tertutup, kartu yang sudah cocok tetap terbuka
+        for (int i = 0; i < _cards.length; i++) {
+          _isFlipped[i] = _isMatched[i];
+        }
+      });
+      _startTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('game_menu.msg_continue_15s'.tr()),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     });
+  }
+
+  void _nextLevel() {
+    final int nextLvl = _level + 1;
+    setState(() {
+      _level = nextLvl;
+      _isLevelClear = false;
+      _timeLeft += 15;
+    });
+    _updateRecordIfNeeded(nextLvl);
     _setupLevel();
   }
 
@@ -119,7 +183,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
         setState(() {
           _isMatched[_previousIndex] = true;
           _isMatched[index] = true;
-          _timeLeft += 10;
+          _timeLeft += 5;
         });
         _showTimeIndicator('memory_match.bonus_indicator', Colors.green);
 
@@ -133,10 +197,16 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
         });
         _showTimeIndicator('memory_match.penalty_indicator', Colors.red);
 
-        Timer(const Duration(milliseconds: 800), () {
-          if (mounted) {
+        if (_timeLeft <= 0) {
+          _endGame();
+          return;
+        }
+
+        final int prevIdx = _previousIndex;
+        Timer(const Duration(milliseconds: 700), () {
+          if (mounted && _isPlaying && !_isGameOver) {
             setState(() {
-              _isFlipped[_previousIndex] = false;
+              _isFlipped[prevIdx] = false;
               _isFlipped[index] = false;
               _previousIndex = -1;
               _isProcessing = false;
@@ -149,17 +219,27 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
 
   void _checkWinCondition() {
     if (!_isMatched.contains(false)) {
+      _updateRecordIfNeeded(_level);
       setState(() {
         _isLevelClear = true;
       });
     }
   }
 
-  void _endGame() {
+  Future<void> _endGame() async {
     _timer?.cancel();
+    final isNew = await GameHighScoreHelper.updateHighScore(
+      GameHighScoreHelper.kMemoryMatch,
+      _level,
+    );
+    if (!mounted) return;
     setState(() {
+      if (isNew || _level > _highLevel) {
+        _highLevel = _level;
+        _isNewHighScore = true;
+      }
+      _isPlaying = false;
       _isGameOver = true;
-      _isFlipped = List<bool>.filled(_cards.length, true);
     });
   }
 
@@ -189,8 +269,11 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
             ),
             Container(
               width: double.infinity,
-              height: 50,
-              color: Colors.grey.shade300,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
+              ),
               child: const Center(
                 child: CustomBannerAd(),
               ),
@@ -203,21 +286,90 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
 
   Widget _buildMenuScreen() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(_isGameOver ? Icons.timer_off : Icons.dashboard_customize, size: 80, color: _isGameOver ? Colors.red : const Color(0xFF0D47A1)),
-            const SizedBox(height: 20),
-            Text(_isGameOver ? 'memory_match.time_up'.tr() : 'memory_match.game_title'.tr(), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
+            Icon(
+              _isGameOver ? Icons.timer_off : Icons.dashboard_customize,
+              size: 76,
+              color: _isGameOver ? Colors.red : const Color(0xFF0D47A1),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _isGameOver ? 'memory_match.time_up'.tr() : 'memory_match.game_title'.tr(),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+            ),
             const SizedBox(height: 10),
 
+            if (_highLevel > 0)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber.shade700),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.emoji_events, color: Colors.amber.shade900, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'game_menu.best_level_label'.tr(args: [_highLevel.toString()]),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber.shade900,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             if (_isGameOver) ...[
-              Text('memory_match.level_survived'.tr(args: [_level.toString()]), style: const TextStyle(fontSize: 18, color: Colors.orange, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 30),
+              if (_isNewHighScore && _level > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    'game_menu.new_high_score'.tr(),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.green),
+                  ),
+                ),
+              Text(
+                'memory_match.level_survived'.tr(args: [_level.toString()]),
+                style: const TextStyle(fontSize: 20, color: Colors.orange, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+
+              if (!_hasUsedContinueAd) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _continueWithAd,
+                    icon: const Icon(Icons.play_circle_fill, color: Colors.white, size: 24),
+                    label: Text(
+                      'game_menu.btn_continue_15s'.tr(),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.deepOrange,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+              ],
             ] else ...[
-              Text('memory_match.instructions'.tr(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, height: 1.5, fontSize: 16)),
+              Text(
+                'memory_match.instructions'.tr(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey, height: 1.5, fontSize: 15),
+              ),
               const SizedBox(height: 30),
             ],
 
@@ -226,7 +378,10 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
               child: ElevatedButton.icon(
                 onPressed: _startGame,
                 icon: const Icon(Icons.play_arrow, color: Colors.white, size: 28),
-                label: Text(_isGameOver ? 'memory_match.btn_play'.tr() : 'memory_match.btn_start'.tr(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                label: Text(
+                  _isGameOver ? 'memory_match.btn_play'.tr() : 'memory_match.btn_start'.tr(),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: const Color(0xFF0D47A1),
@@ -276,22 +431,50 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(color: const Color(0xFF0D47A1), borderRadius: BorderRadius.circular(20)),
-                child: Text('memory_match.level_label'.tr(args: [_level.toString()]), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text(
+                  'memory_match.level_label'.tr(args: [_level.toString()]),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                    color: _timeLeft < 60 ? Colors.red.shade100 : Colors.white,
+              if (_highLevel > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _timeLeft < 60 ? Colors.red : Colors.grey.shade300)
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.emoji_events, size: 16, color: Colors.amber.shade900),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Lv.$_highLevel',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                      ),
+                    ],
+                  ),
+                ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _timeLeft <= 15 ? Colors.red.shade100 : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _timeLeft <= 15 ? Colors.red : Colors.grey.shade300),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.timer, color: _timeLeft < 60 ? Colors.red : const Color(0xFF0D47A1)),
-                    const SizedBox(width: 8),
-                    Text(_formatTime(_timeLeft), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _timeLeft < 60 ? Colors.red : Colors.black87)),
+                    Icon(Icons.timer, color: _timeLeft <= 15 ? Colors.red : const Color(0xFF0D47A1)),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatTime(_timeLeft),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: _timeLeft <= 15 ? Colors.red : Colors.black87,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -323,13 +506,13 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                       width: 2,
                     ),
                     boxShadow: [
-                      if (!isFlipped) BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(2, 2))
+                      if (!isFlipped) BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(2, 2))
                     ],
                   ),
                   child: Center(
                     child: isFlipped
-                        ? Icon(_cards[index], size: 40, color: const Color(0xFF333333))
-                        : const Icon(Icons.help_outline, size: 30, color: Colors.white54),
+                        ? Icon(_cards[index], size: 36, color: const Color(0xFF333333))
+                        : const Icon(Icons.help_outline, size: 28, color: Colors.white54),
                   ),
                 ),
               );

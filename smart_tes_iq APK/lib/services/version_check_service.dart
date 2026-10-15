@@ -16,8 +16,8 @@ class VersionCheckService {
       'https://play.google.com/store/apps/details?id=com.cellanomadigital.smart_tes_iq';
 
   // Fallback jika MethodChannel gagal dipanggil
-  static const String _fallbackVersionName = '2.3.5';
-  static const int _fallbackVersionCode = 19;
+  static const String _fallbackVersionName = '2.3.6';
+  static const int _fallbackVersionCode = 20;
 
   static bool _isDialogShowing = false;
 

@@ -37,6 +37,7 @@ class _FinalResultScreenState extends State<FinalResultScreen> {
   @override
   void initState() {
     super.initState();
+    RewardedAdManager.loadAd();
     // Inisialisasi nilai awal dengan nilai terjemahan
     _iqRegulerCategory = 'final_result.calculating'.tr();
     _iqProCategory = 'final_result.not_tested'.tr();

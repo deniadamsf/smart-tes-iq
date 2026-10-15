@@ -16,6 +16,7 @@ class User extends Authenticatable
         'name',
         'display_name',
         'sembunyi_dari_papan',
+        'game_high_scores',
         'email',
         'password',
         'google_id',
@@ -32,6 +33,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'sembunyi_dari_papan' => 'boolean',
+            'game_high_scores' => 'array',
         ];
     }
 
