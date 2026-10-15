@@ -66,6 +66,7 @@ flutter {
 }
 
 dependencies {
+    implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.android.billingclient:billing:9.0.0")
 
     // =========================================================================
@@ -75,4 +76,27 @@ dependencies {
     implementation("com.google.ads.mediation:unity:4.12.5.0")
     // 2. Liftoff Monetize / Vungle (App ID: 6ad053875bdb53e5e0ed6499)
     implementation("com.google.ads.mediation:vungle:7.4.2.0")
+}
+
+// Perbaikan Obfuscation DEX Play Console:
+// AAR vungle-ads:7.4.2 membawa aturan `-keep class com.google.android.gms.** { *; }`
+// yang mematikan obfuscation R8 pada >10.000 class internal Google Play Services
+// sehingga skor obfuscation turun ke 20% (di bawah batas minimum 25% Play Console).
+tasks.matching { it.name.startsWith("minify") && it.name.endsWith("WithR8") }.configureEach {
+    doFirst {
+        inputs.files.forEach { file ->
+            if (file.exists() && file.name == "proguard.txt" && file.path.contains("vungle-ads")) {
+                val content = file.readText()
+                if (content.contains("-keep class com.google.android.gms.**")) {
+                    val patched = content.replace(
+                        "-keep class com.google.android.gms.** { *; }",
+                        "-keep class com.google.android.gms.ads.identifier.** { *; }\n" +
+                            "-keep class com.google.android.gms.appset.** { *; }\n" +
+                            "-keep class com.google.android.gms.common.GoogleApiAvailabilityLight { *; }"
+                    )
+                    file.writeText(patched)
+                }
+            }
+        }
+    }
 }
