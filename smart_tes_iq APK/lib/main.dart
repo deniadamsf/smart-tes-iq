@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,16 @@ import 'helpers/rewarded_ad_manager.dart';
 void main() async {
   // Wajib ditambahkan agar Firebase siap sebelum aplikasi menggambar layar
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Aktifkan mode Edge-to-Edge sesuai standar Android 15 (SDK 35)
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
 
   // BARU: wajib dipanggil sebelum EasyLocalization dipakai
   await EasyLocalization.ensureInitialized();
@@ -65,6 +76,19 @@ class SmartTesIqApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0D47A1)),
         useMaterial3: true,
       ),
+      // Pastikan seluruh layar menghormati inset navigasi bawah pada Android 15 Edge-to-Edge
+      builder: (context, child) {
+        return ColoredBox(
+          color: Colors.white,
+          child: SafeArea(
+            top: false,
+            left: false,
+            right: false,
+            bottom: true,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
       // BARU: kalau belum pernah pilih bahasa -> tampilkan halaman pilih
       // bahasa dulu. Kalau sudah -> langsung ke aplikasi seperti biasa
       // (perilaku lama, tidak berubah).

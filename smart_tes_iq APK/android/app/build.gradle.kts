@@ -51,6 +51,12 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -61,4 +67,12 @@ flutter {
 
 dependencies {
     implementation("com.android.billingclient:billing:9.0.0")
+
+    // =========================================================================
+    // GOOGLE ADMOB MEDIATION ADAPTERS (TRIO: ADMOB + UNITY ADS + LIFTOFF/VUNGLE)
+    // =========================================================================
+    // 1. Unity Ads (Game ID: 800399256 | BP_Rewarded_Android & BP_Banner_Android)
+    implementation("com.google.ads.mediation:unity:4.12.5.0")
+    // 2. Liftoff Monetize / Vungle (App ID: 6ad053875bdb53e5e0ed6499)
+    implementation("com.google.ads.mediation:vungle:7.4.2.0")
 }

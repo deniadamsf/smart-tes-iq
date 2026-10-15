@@ -26,6 +26,7 @@ import 'eq_test_screen.dart';
 import 'sq_test_screen.dart';
 import 'pro_iq_dashboard_screen.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../services/version_check_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,7 +35,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _completedTestsCount = 0;
   List<String> _completedTests = [];
 
@@ -88,6 +89,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        VersionCheckService.checkAndEnforceUpdate(context);
+      }
+    });
     RewardedAdManager.loadAd(); // Pastikan iklan video selalu siap di memori
     _loadProgress();
     _loadTopWinners();
@@ -110,7 +117,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      VersionCheckService.checkAndEnforceUpdate(context);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription.cancel();
     AuthService.refreshTrigger.removeListener(_onRefreshTriggered);
     _iapSubscription.cancel();
@@ -427,35 +442,124 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _handleEqSqTap() {
-    if (_eqSqCredits > 0) {
-      showModalBottomSheet(
+  void _showWarteggPurchaseSheet() {
+    ProductDetails? wProd = _getProduct(_warteggProductId);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.psychology_alt, size: 60, color: Colors.purple),
+            const SizedBox(height: 10),
+            Text('home.sheet_wartegg_title'.tr(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text('home.sheet_wartegg_desc'.tr(), textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  if (wProd != null) {
+                    final PurchaseParam purchaseParam = PurchaseParam(productDetails: wProd);
+                    _iap.buyConsumable(purchaseParam: purchaseParam, autoConsume: true);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('home.msg_store_loading'.tr()), backgroundColor: Colors.purple)
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text(
+                  wProd != null ? 'home.btn_buy_credits'.tr(args: [wProd.price]) : 'home.btn_buy_credits_fallback'.tr(args: ['7.000']),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleWarteggTap() {
+    if (_warteggCredits > 0) {
+      showDialog(
         context: context,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-        builder: (context) => Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('home.sheet_select_test_title'.tr(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Text('home.sheet_select_test_desc'.tr(args: [_eqSqCredits.toString()]), textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade700)),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: CircleAvatar(backgroundColor: Colors.pink.shade100, child: const Icon(Icons.favorite, color: Colors.pink)),
-                title: Text('home.test_eq'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _consumeEqSqCreditAndGo("eq"),
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('home.dialog_use_credit_title'.tr()),
+          content: Text('home.dialog_use_credit_desc'.tr(args: [_warteggCredits.toString(), 'Smart AI Wartegg'])),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('home.btn_cancel'.tr()),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final saldo = await CreditStore.pakai(CreditStore.kWartegg, 1);
+                setState(() => _warteggCredits = saldo);
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const WarteggScreen())).then((_) => _loadProgress());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6A1B9A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              const Divider(),
-              ListTile(
-                leading: CircleAvatar(backgroundColor: Colors.purple.shade100, child: const Icon(Icons.self_improvement, color: Colors.purple)),
-                title: Text('home.test_sq'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _consumeEqSqCreditAndGo("sq"),
+              child: Text('home.btn_start_test'.tr()),
+            ),
+          ],
+        ),
+      );
+    } else {
+      _showWarteggPurchaseSheet();
+    }
+  }
+
+  void _handleIndividualEqSqTap(String testType) {
+    if (_eqSqCredits > 0) {
+      final String testTitle = testType == "eq" ? 'home.test_eq'.tr() : 'home.test_sq'.tr();
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('home.dialog_use_credit_title'.tr()),
+          content: Text('home.dialog_use_credit_desc'.tr(args: [_eqSqCredits.toString(), testTitle])),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('home.btn_cancel'.tr()),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final saldo = await CreditStore.pakai(CreditStore.kEqSq, 1);
+                setState(() => _eqSqCredits = saldo);
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                if (testType == "eq") {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const EqTestScreen())).then((_) => _loadProgress());
+                } else {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SqTestScreen())).then((_) => _loadProgress());
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: testType == "eq" ? const Color(0xFFD81B60) : const Color(0xFF00796B),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-            ],
-          ),
+              child: Text('home.btn_start_test'.tr()),
+            ),
+          ],
         ),
       );
     } else {
@@ -463,19 +567,213 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _consumeEqSqCreditAndGo(String testType) async {
-    final saldo = await CreditStore.pakai(CreditStore.kEqSq, 1);
-    if (!mounted) return;
-    setState(() => _eqSqCredits = saldo);
+  void _showPremiumPsychologySelectorSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6A1B9A).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.psychology_alt_rounded,
+                        color: Color(0xFF6A1B9A),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'home.sheet_psychology_title'.tr(),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'home.sheet_psychology_desc'.tr(),
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _buildPremiumTestItem(
+                  sheetContext: sheetContext,
+                  icon: Icons.draw_rounded,
+                  iconBg: const Color(0xFFF3E5F5),
+                  iconColor: const Color(0xFF6A1B9A),
+                  title: 'home.banner_wartegg_title'.tr(),
+                  subtitle: 'home.test_wartegg_sub'.tr(),
+                  credits: _warteggCredits,
+                  onTap: _handleWarteggTap,
+                ),
+                const SizedBox(height: 10),
+                _buildPremiumTestItem(
+                  sheetContext: sheetContext,
+                  icon: Icons.favorite_rounded,
+                  iconBg: const Color(0xFFFCE4EC),
+                  iconColor: const Color(0xFFD81B60),
+                  title: 'home.test_eq'.tr(),
+                  subtitle: 'home.test_eq_sub'.tr(),
+                  credits: _eqSqCredits,
+                  onTap: () => _handleIndividualEqSqTap("eq"),
+                ),
+                const SizedBox(height: 10),
+                _buildPremiumTestItem(
+                  sheetContext: sheetContext,
+                  icon: Icons.self_improvement_rounded,
+                  iconBg: const Color(0xFFE0F2F1),
+                  iconColor: const Color(0xFF00796B),
+                  title: 'home.test_sq'.tr(),
+                  subtitle: 'home.test_sq_sub'.tr(),
+                  credits: _eqSqCredits,
+                  onTap: () => _handleIndividualEqSqTap("sq"),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-    if (!mounted) return;
-    Navigator.pop(context);
-
-    if (testType == "eq") {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const EqTestScreen())).then((_) => _loadProgress());
-    } else {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const SqTestScreen())).then((_) => _loadProgress());
-    }
+  Widget _buildPremiumTestItem({
+    required BuildContext sheetContext,
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required int credits,
+    required VoidCallback onTap,
+  }) {
+    final bool hasCredits = credits > 0;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(sheetContext);
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: hasCredits ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: hasCredits ? const Color(0xFFA5D6A7) : const Color(0xFFFFCC80),
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  hasCredits
+                      ? 'home.credits_badge'.tr(args: [credits.toString()])
+                      : 'home.credits_depleted_badge'.tr(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: hasCredits ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF94A3B8),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showEqSqPurchaseSheet() {
@@ -891,181 +1189,278 @@ class _HomeScreenState extends State<HomeScreen> {
             // =====================================
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
-              child: Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)]),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    leading: const Icon(Icons.workspace_premium, color: Colors.white, size: 36),
-                    title: Row(
-                      children: [
-                        // PERBAIKAN: Bungkus Text dengan Flexible
-                        Flexible(
-                          child: Text('home.banner_pro_title'.tr(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(4)), child: const Text('PRO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black87)))
-                      ],
-                    ),
-                    subtitle: Text('home.banner_pro_desc'.tr(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                    trailing: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ProIqDashboardScreen())).then((_) => _loadProgress());
-                      },
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF0D47A1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          minimumSize: const Size(60, 35)
-                      ),
-                      child: Text('home.btn_open_dashboard'.tr(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 15),
-
-            // =====================================
-            // JUDUL PEMISAH TES PSIKOLOGI PREMIUM
-            // =====================================
-            Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
-                child: Text('home.premium_title'.tr(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)))
-            ),
-
-            // =====================================
-            // 2. BANNER PREMIUM WARTEGG
-            // =====================================
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
               child: Container(
-                decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6A1B9A), Color(0xFF8E24AA)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D47A1).withOpacity(0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(16),
                     onTap: () {
-                      if (_warteggCredits > 0) {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('home.dialog_use_credit_title'.tr()),
-                            content: Text('home.dialog_use_credit_desc'.tr(args: [_warteggCredits.toString(), 'Smart AI Wartegg'])),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(context), child: Text('home.btn_cancel'.tr())),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  final saldo = await CreditStore.pakai(CreditStore.kWartegg, 1);
-                                  setState(() => _warteggCredits = saldo);
-                                  if (!context.mounted) return;
-                                  Navigator.pop(context);
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const WarteggScreen())).then((_) => _loadProgress());
-                                },
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white),
-                                child: Text('home.btn_start_test'.tr()),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ProIqDashboardScreen()),
+                      ).then((_) => _loadProgress());
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.25),
+                                width: 1.2,
                               ),
-                            ],
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Color(0xFFFFD54F),
+                              size: 26,
+                            ),
                           ),
-                        );
-                      } else {
-                        ProductDetails? wProd = _getProduct(_warteggProductId);
-                        showModalBottomSheet(
-                          context: context,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-                          builder: (context) => Padding(
-                            padding: const EdgeInsets.all(24.0),
+                          const SizedBox(width: 14),
+                          Expanded(
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.psychology, size: 60, color: Colors.purple), const SizedBox(height: 10),
-                                Text('home.sheet_wartegg_title'.tr(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 10),
-                                Text('home.sheet_wartegg_desc'.tr(), textAlign: TextAlign.center), const SizedBox(height: 20),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      if (wProd != null) {
-                                        final PurchaseParam purchaseParam = PurchaseParam(productDetails: wProd);
-                                        _iap.buyConsumable(purchaseParam: purchaseParam, autoConsume: true);
-                                      } else {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('home.msg_store_loading'.tr()), backgroundColor: Colors.purple)
-                                        );
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: Colors.purple, foregroundColor: Colors.white),
-                                    child: Text(
-                                        wProd != null ? 'home.btn_buy_credits'.tr(args: [wProd.price]) : 'home.btn_buy_credits_fallback'.tr(args: ['7.000']),
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        'home.banner_pro_title'.tr(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFFFFD54F), Color(0xFFFFB300)],
+                                        ),
+                                        borderRadius: BorderRadius.circular(5),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.2),
+                                            blurRadius: 2,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Text(
+                                        'PRO',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF1A1A1A),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'home.banner_pro_desc'.tr(),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 11.5,
+                                    height: 1.25,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(Icons.psychology_alt, color: Colors.amber, size: 28)),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('home.banner_wartegg_title'.tr(), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4), Text('home.banner_wartegg_desc'.tr(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                              ],
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Colors.white,
+                              size: 14,
                             ),
                           ),
-                          const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
                         ],
                       ),
                     ),
                   ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // =====================================
+            // JUDUL PEMISAH TES PSIKOLOGI PREMIUM
+            // =====================================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+              child: Text(
+                'home.premium_title'.tr(),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333333),
                 ),
               ),
             ),
 
             // =====================================
-            // 3. BANNER PREMIUM EQ & SQ
+            // 2. BANNER PSIKOLOGI AI (PREMIUM) - UNIFIED
             // =====================================
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
               child: Container(
-                decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF004D40), Color(0xFF00897B)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6A1B9A), Color(0xFF8E24AA)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6A1B9A).withOpacity(0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(15),
-                    onTap: _handleEqSqTap,
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _showPremiumPsychologySelectorSheet,
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
                       child: Row(
                         children: [
-                          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(Icons.self_improvement, color: Colors.amber, size: 28)),
-                          const SizedBox(width: 16),
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.25),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.psychology_alt_rounded,
+                              color: Color(0xFFFFD54F),
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('home.banner_eqsq_title'.tr(), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4), Text('home.banner_eqsq_desc'.tr(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        'home.banner_psychology_title'.tr(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFFFF80AB), Color(0xFFF50057)],
+                                        ),
+                                        borderRadius: BorderRadius.circular(5),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.2),
+                                            blurRadius: 2,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        'home.badge_premium'.tr(),
+                                        style: const TextStyle(
+                                          fontSize: 9.0,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'home.banner_psychology_desc'.tr(),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 11.5,
+                                    height: 1.25,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1073,7 +1468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             Padding(
                 padding: const EdgeInsets.only(left: 20.0, top: 10.0, bottom: 8.0),

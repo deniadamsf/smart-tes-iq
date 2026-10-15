@@ -93,6 +93,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   void _keSoal(int index) {
     setState(() => _current = index);
     WidgetsBinding.instance.addPostFrameCallback((_) => _gulirKePita(index));
+
+    // Saat user di pertengahan soal (soal ke-10 atau ke-20), pastikan iklan
+    // kedua untuk gerbang hasil sudah siap di memori tanpa menunggu tombol diklik.
+    if ((index == 10 || index == 20) && !RewardedAdManager.isReady) {
+      RewardedAdManager.loadAd(forceResetRetry: true);
+    }
   }
 
   // ===================================================================
